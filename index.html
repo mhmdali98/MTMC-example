@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multi-Camera Tracking Simulation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700&family=Inter:wght@400;500;600&family=Vazirmatn:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: calm, clear academic explainer for a supervisor and committee
+   IDEA: the page behaves like a CCTV control room watching a kitchen floor plan
+   PICTURE: a live top-down kitchen with four camera cones and moving, labelled workers
+   COLOUR and TYPE: deep green ground, lime-white signal, coral for errors; Inter Tight + Inter, Vazirmatn for Arabic/Persian
+   LAYOUT: title across the top, wide live map below, then problem, pipeline, simulation, output, evaluation */
+:root{color-scheme:light dark;--g:#00463c;--g2:#05302a;--lime:#e6f5c8;--coral:#ff6f59;
+--bg:light-dark(#ffffff,#0a1714);--ink:light-dark(#0b1f1b,#e8f2ee);--mut:light-dark(#4a5f5a,#a7bcb6);
+--card:light-dark(#f1f6f3,#11231f);--line:light-dark(#d5e2dc,#24403a);--acc:light-dark(#00634f,#9fe0b8)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 Inter,Vazirmatn,system-ui,sans-serif;overflow-x:clip}
+[dir=rtl] body{font-family:Vazirmatn,Inter,system-ui,sans-serif;line-height:1.8}
+h1,h2,h3{font-family:"Inter Tight",Vazirmatn,sans-serif;line-height:1.08;text-wrap:balance;margin:0}
+[dir=rtl] :is(h1,h2,h3){font-family:Vazirmatn,sans-serif;line-height:1.35}
+h1{font-size:clamp(32px,5vw,52px)}h2{font-size:clamp(28px,3.6vw,40px)}h3{font-size:19px}
+p{margin:0}
+.wrap{max-width:1240px;margin:0 auto}
+.band{padding:clamp(40px,6vw,84px) max(5vw,16px)}
+.lead{font-size:17px;color:var(--mut);max-width:68ch;margin-top:12px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:3px solid var(--coral);outline-offset:2px}
+/* nav */
+.top{position:sticky;top:0;z-index:20;background:var(--g);color:var(--lime);border-bottom:1px solid rgba(230,245,200,.15)}
+.top .wrap{display:flex;align-items:center;gap:16px;padding:8px max(5vw,16px);flex-wrap:wrap}
+.brand{font:700 17px "Inter Tight",sans-serif;white-space:nowrap}
+.links{display:flex;gap:4px;overflow-x:auto;flex:1}
+.links a{flex:none;color:var(--lime);text-decoration:none;padding:10px 10px;border-radius:8px;opacity:.85;font-size:15px}
+.links a:hover{background:rgba(230,245,200,.1);opacity:1}
+.lang{display:flex;border:1px solid rgba(230,245,200,.35);border-radius:10px;overflow:hidden}
+.lang button{background:none;border:0;color:var(--lime);min-height:40px;padding:0 12px;font-size:14px}
+.lang button[aria-pressed=true]{background:var(--lime);color:var(--g);font-weight:600}
+/* hero */
+.hero{background:var(--g);color:var(--lime)}
+.hero .kick{opacity:.8;font-size:15px}
+.hero h1{margin-top:10px;color:#fff}
+.hero .lead{color:rgba(230,245,200,.85)}
+.cta{display:inline-flex;align-items:center;gap:8px;margin-top:22px;background:var(--lime);color:var(--g);font-weight:600;text-decoration:none;padding:12px 20px;border-radius:12px;min-height:44px}
+.hfig{margin-top:28px;aspect-ratio:5/3;max-height:62vh;width:100%;position:relative;border-radius:18px;overflow:hidden;box-shadow:0 30px 60px -30px rgba(0,0,0,.6)}
+.hfig canvas,.sfig canvas,.pfig canvas{position:absolute;inset:0;width:100%;height:100%}
+.cap{font-size:14px;opacity:.8;margin-top:10px}
+/* problem */
+.pgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin-top:32px}
+.pc{background:var(--card);border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+.pfig{position:relative;aspect-ratio:16/10;background:#0d2a25}
+.pc .tx{padding:18px 20px 22px}.pc p{color:var(--mut);margin-top:6px}
+.note{margin-top:24px;padding:16px 20px;border-inline-start:4px solid var(--coral);background:var(--card);border-radius:8px;font-weight:500}
+/* pipeline */
+.sys{background:var(--card)}
+.pipe{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px;margin-top:34px}
+.stg{position:relative;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:14px 14px 16px;text-align:start;display:flex;flex-direction:column;gap:8px;min-height:132px;transition:border-color .3s,box-shadow .3s,transform .3s}
+.stg .n{font-size:13px;color:var(--mut)}
+.stg svg{width:30px;height:30px;stroke:var(--acc);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.stg b{font-size:15px;line-height:1.3}
+.stg.on{border-color:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 25%,transparent);transform:translateY(-3px)}
+.stg[aria-pressed=true]{background:var(--g);color:var(--lime);border-color:var(--g)}
+.stg[aria-pressed=true] svg{stroke:var(--lime)}.stg[aria-pressed=true] .n{color:rgba(230,245,200,.75)}
+.arr::after{content:"";position:absolute;top:50%;inset-inline-end:-18px;width:18px;height:3px;background:repeating-linear-gradient(90deg,var(--acc) 0 6px,transparent 6px 10px);background-size:20px 3px;animation:flow .8s linear infinite}
+[dir=rtl] .arr::after{animation-direction:reverse}
+@keyframes flow{to{background-position:20px 0}}
+.opt{grid-column:5;grid-row:2;border-style:dashed;border-width:2px;background:transparent}
+.opt::before{content:"";position:absolute;bottom:100%;left:50%;height:18px;border-inline-start:2px dashed var(--line)}
+.opt .tag{font-size:12px;color:var(--coral);font-weight:600}
+.det{margin-top:24px;background:var(--bg);border-radius:16px;padding:22px 24px;border:1px solid var(--line);display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:24px;align-items:center}
+.det p{color:var(--mut);margin-top:8px;max-width:62ch}
+.io{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:14px}
+.chip small{display:block;color:var(--mut);font-size:13px}
+.io .to{color:var(--acc);font-size:20px}[dir=rtl] .io .to{transform:scaleX(-1)}
+/* sim */
+.ctl{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:28px}
+.seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px;flex-wrap:wrap}
+.seg button{border:0;background:none;min-height:42px;padding:0 14px;border-radius:9px;font-weight:500}
+.seg button[aria-pressed=true]{background:var(--g);color:var(--lime)}
+.seg button.bad[aria-pressed=true]{background:var(--coral);color:#2a0c06}
+.btn{border:1px solid var(--line);background:var(--bg);min-height:44px;padding:0 16px;border-radius:12px;font-weight:500}
+.camctl{margin-top:14px}.camctl .cl{font-weight:600}.cov{font-size:15px;color:var(--mut)}.cov b{color:var(--ink);font:700 22px "Inter Tight",sans-serif;margin-inline-start:4px}
+.seg button.off{opacity:.6}
+.mexp{margin-top:14px;color:var(--mut);min-height:3.2em;max-width:80ch}
+.sfig{position:relative;aspect-ratio:5/3;margin-top:14px;border-radius:18px;overflow:hidden;background:var(--g2)}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:16px}
+.stat{background:var(--bg);padding:14px 16px}
+.stat span{display:block;font-size:13px;color:var(--mut)}
+.stat b{font:700 clamp(24px,3vw,34px) "Inter Tight",sans-serif;white-space:nowrap}
+.stat.err b{color:var(--coral)}
+.leg{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:14px;color:var(--mut)}
+.leg i{display:inline-block;width:18px;height:12px;border-radius:3px;vertical-align:-1px;margin-inline-end:6px}
+.small{font-size:13px;color:var(--mut);margin-top:10px}
+/* output */
+.out{background:var(--card)}
+.tl{margin-top:28px;background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:20px}
+.tlr{display:grid;grid-template-columns:90px minmax(0,1fr) 150px;gap:14px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.tlr:last-child{border-bottom:0}
+.trk{direction:ltr;position:relative;height:26px;background:var(--card);border-radius:6px}
+.sg{position:absolute;top:0;bottom:0;border-radius:4px;transform:scaleX(0);transform-origin:inline-start;transition:transform .9s cubic-bezier(.2,.7,.2,1)}
+.sg{transform-origin:left}
+.in .sg{transform:scaleX(1)}
+.ax{display:flex;justify-content:space-between;font-size:13px;color:var(--mut);direction:ltr}
+.sum{font-size:14px}.sum b{font-variant-numeric:tabular-nums;white-space:nowrap}
+.mgrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-top:20px}
+.mc{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:16px}
+.mc b{font:700 20px "Inter Tight",sans-serif}
+.mc p{font-size:14px;color:var(--mut);margin-top:6px}
+.mc .dir{display:inline-block;margin-top:10px;font-size:13px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--card)}
+h3.sub{margin-top:44px}
+.dgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:28px}
+.dc{border-top:4px solid var(--g);padding-top:14px}.dc p{color:var(--mut);margin-top:6px}
+.dc .role{font-size:13px;font-weight:600;color:var(--acc)}
+footer{background:var(--g);color:var(--lime);font-size:14px}
+.rv{opacity:0;transform:translateY(18px);transition:opacity .7s,transform .7s}.rv.in{opacity:1;transform:none}
+.cmpwrap{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;margin-top:22px}
+.map{position:relative;min-height:380px;background:var(--g2);border-radius:18px;overflow:hidden}.map svg{position:absolute;inset:0;width:100%;height:100%}
+.map .dot{cursor:pointer}.pulse{animation:pl 1.8s ease-out infinite;transform-box:fill-box;transform-origin:center}@keyframes pl{from{opacity:.8;transform:scale(1)}to{opacity:0;transform:scale(2.6)}}
+.cdet{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px 24px}
+.cdet .yr{font-size:13px;color:var(--mut)}.cdet h4{margin:16px 0 4px;font-size:14px;color:var(--acc)}.cdet h4.bad{color:var(--coral)}.cdet p{color:var(--mut)}
+.mtabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:26px}
+.mtabs button{border:1px solid var(--line);background:var(--bg);min-height:42px;padding:0 14px;border-radius:999px;font-weight:500}
+.mtabs button[aria-pressed=true]{background:var(--g);color:var(--lime);border-color:var(--g)}
+.scroll{overflow-x:auto}
+table.cmp{width:100%;border-collapse:collapse;margin-top:22px;min-width:720px;font-size:15px}
+.cmp th,.cmp td{padding:11px 10px;border-bottom:1px solid var(--line);text-align:center}.cmp th:first-child,.cmp td:first-child{text-align:start}
+.cmp th{font-size:14px;font-weight:600}.cmp .sel{background:color-mix(in srgb,var(--acc) 12%,transparent)}
+.y{color:var(--acc)}.p{color:#d9962b}.n{color:var(--coral)}.sym{font-size:18px}
+.gap{background:var(--g);color:var(--lime)}.gap h2{color:#fff}.gap .lead{color:rgba(230,245,200,.85)}
+.demo{margin-top:44px;background:rgba(0,0,0,.18);border:1px solid rgba(230,245,200,.18);border-radius:22px;padding:clamp(16px,3vw,28px)}
+.demo h3{color:#fff}
+.dtabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.dtabs button{border:1px solid rgba(230,245,200,.35);background:none;color:var(--lime);min-height:44px;padding:0 16px;border-radius:999px;font-weight:500}
+.dtabs button[aria-pressed=true]{background:var(--lime);color:var(--g);font-weight:600}
+.dfig{position:relative;aspect-ratio:2/1;margin-top:16px;border-radius:16px;overflow:hidden;background:#05302a}.dfig canvas{position:absolute;inset:0;width:100%;height:100%}
+.dbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
+.dbtn{border:1px solid rgba(230,245,200,.35);background:none;color:var(--lime);min-height:44px;padding:0 16px;border-radius:12px}
+.steps{display:flex;gap:6px;margin-inline-start:auto}
+.steps button{width:44px;height:44px;border:0;background:none;display:grid;place-items:center;padding:0}
+.steps button i{display:block;width:28px;height:6px;border-radius:3px;background:rgba(230,245,200,.25)}
+.steps button[aria-current=true] i{background:var(--lime)}
+.dcap{margin-top:10px;font-size:17px;color:#fff;min-height:3.4em;max-width:80ch}
+.dnote{font-size:13px;opacity:.75}
+.watch{margin-top:12px;border:0;background:var(--g);color:var(--lime);min-height:40px;padding:0 14px;border-radius:10px;font-weight:600;font-size:14px}
+.gc.opt2 .watch{background:var(--lime);color:var(--g)}
+.ggrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin-top:32px}
+.gc{display:flex;flex-direction:column;gap:0}
+.gb{border-radius:16px;padding:18px 20px}.gb small{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+.gb.g1{background:rgba(255,111,89,.14);border:1px solid rgba(255,111,89,.5)}.gb.g1 small{color:#ffb3a6}
+.gb.g2{background:var(--lime);color:#06231e}.gb.g2 small{color:#00634f}
+.gc.opt2 .gb.g2{background:transparent;color:var(--lime);border:2px dashed rgba(230,245,200,.6)}.gc.opt2 .gb.g2 small{color:#ffb3a6}
+.gar{height:46px;position:relative}.gar::before{content:"";position:absolute;left:50%;top:6px;bottom:6px;border-inline-start:2px dashed rgba(230,245,200,.6)}
+.gar::after{content:"";position:absolute;left:calc(50% - 6px);top:6px;width:10px;height:10px;border-radius:50%;background:var(--lime);animation:drop 1.6s ease-in infinite}
+@keyframes drop{from{transform:translateY(0);opacity:1}to{transform:translateY(26px);opacity:0}}
+.arch{border-top:1px solid var(--line)}
+.actl{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:24px}.astep{font-weight:600;color:var(--mut);font-variant-numeric:tabular-nums}
+.agrid{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(0,.9fr) minmax(0,1fr);column-gap:56px;row-gap:16px;margin-top:22px}
+.aedge{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.ep{fill:none;stroke:var(--line);stroke-width:2;stroke-dasharray:6 5;animation:dash 1.2s linear infinite}.ep.dash{stroke-dasharray:3 6}
+.ep.on{stroke:var(--acc);stroke-width:3}@keyframes dash{to{stroke-dashoffset:-22}}
+.pk{fill:#ffd166;opacity:0;filter:drop-shadow(0 0 4px #ffd166)}
+.ah{font-size:13px;font-weight:700;color:var(--mut);padding-bottom:4px;border-bottom:2px solid var(--line)}
+.ab{position:relative;z-index:1;display:flex;gap:10px;align-items:center;text-align:start;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;min-height:64px;transition:transform .25s,box-shadow .25s}
+.ab svg{flex:none;width:28px;height:28px;stroke:var(--acc);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.ab b{display:block;font-size:14px;line-height:1.3}.ab small{display:block;font-size:12.5px;color:var(--mut);line-height:1.35;margin-top:2px}
+.ab[data-c="1"]{border-inline-start:4px solid #7ae0ff}.ab[data-c="4"]{border-inline-start:4px solid #b4f07a}
+.ab.aopt{border-style:dashed;border-width:2px;background:transparent}
+.ab[aria-pressed=true]{background:var(--g);color:var(--lime);border-color:var(--g);transform:scale(1.03);box-shadow:0 10px 24px -12px rgba(0,0,0,.5)}
+.ab[aria-pressed=true] svg{stroke:var(--lime)}.ab[aria-pressed=true] small{color:rgba(230,245,200,.8)}
+.adet{margin-top:26px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px 24px}
+.adet h4{margin:14px 0 4px;font-size:14px;color:var(--acc)}.adet p{color:var(--mut)}.acol{font-size:13px;font-weight:600;color:var(--coral)}
+.adet pre{margin:0;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+.adet .io{margin-top:12px}.acv{position:relative;aspect-ratio:4/3;border-radius:14px;overflow:hidden;background:#05302a;align-self:start}.acv canvas{position:absolute;inset:0;width:100%;height:100%}
+@media(max-width:899px){.agrid{grid-template-columns:minmax(0,1fr);row-gap:10px}.agrid .ab,.agrid .ah{grid-column:auto!important;grid-row:auto!important}.agrid .ah{display:none}.adet{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:1000px){.pipe{grid-template-columns:repeat(3,minmax(0,1fr))}.opt{grid-column:auto;grid-row:auto}.opt::before,.arr::after{display:none}.mgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.ggrid {grid-template-columns:minmax(0,1fr)}.cmpwrap{grid-template-columns:minmax(0,1fr)}.pgrid,.dgrid{grid-template-columns:minmax(0,1fr)}.det{grid-template-columns:minmax(0,1fr)}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.tlr{grid-template-columns:60px minmax(0,1fr)}.sum{grid-column:2}}
+@media(max-width:600px){.dfig{aspect-ratio:4/3}.steps{margin-inline-start:0}.pipe{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.mgrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.links{display:none}.hfig{aspect-ratio:4/3}.sfig{aspect-ratio:4/3}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv{opacity:1;transform:none}.sg{transform:none}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <span class="brand">MCMT</span>
+  <nav class="links">
+    <a href="#problem" data-i="nav1">The problem</a><a href="#system" data-i="nav2">How it works</a><a href="#arch" data-i="nav8">Architecture</a><a href="#sim" data-i="nav3">Simulation</a><a href="#compare" data-i="nav6">Comparison</a><a href="#gap" data-i="nav7">Contribution</a><a href="#output" data-i="nav4">Expected output</a><a href="#eval" data-i="nav5">Evaluation</a>
+  </nav>
+  <div class="lang" role="group" aria-label="Language">
+    <button data-l="en" aria-pressed="true">EN</button><button data-l="ar" aria-pressed="false">عربي</button><button data-l="fa" aria-pressed="false">فارسی</button>
+  </div>
+</div></header>
+
+<section class="hero band"><div class="wrap">
+  <p class="kick" data-i="kick">M.Sc. research · AI Engineering · Amirkabir University of Technology</p>
+  <h1 data-i="h1">Who is who, across every camera</h1>
+  <p class="lead" data-i="hsub">Multi-camera multi-person detection and tracking in a uniformed workplace, keeping one stable identity per worker for the whole shift.</p>
+  <a class="cta" href="#sim" data-i="cta">Run the simulation</a>
+  <div class="hfig"><canvas id="hero" dir="ltr" aria-label="Animated kitchen floor plan with four cameras and moving workers"></canvas></div>
+  <p class="cap" data-i="hcap">Live view: four cameras watch a kitchen. Each colour is one worker's global identity.</p>
+</div></section>
+
+<section class="band" id="problem"><div class="wrap">
+  <h2 data-i="pt">The problem</h2>
+  <p class="lead" data-i="ps">Tracking one person inside one camera is largely solved. Keeping the same identity across many cameras, in a room where everyone wears the same uniform, is not.</p>
+  <div class="pgrid">
+    <article class="pc rv"><div class="pfig"><canvas id="p1" dir="ltr"></canvas></div><div class="tx"><h3 data-i="p1t">Identical uniforms</h3><p data-i="p1d"></p></div></article>
+    <article class="pc rv"><div class="pfig"><canvas id="p2" dir="ltr"></canvas></div><div class="tx"><h3 data-i="p2t">Camera hand-off</h3><p data-i="p2d"></p></div></article>
+    <article class="pc rv"><div class="pfig"><canvas id="p3" dir="ltr"></canvas></div><div class="tx"><h3 data-i="p3t">Occlusion</h3><p data-i="p3d"></p></div></article>
+  </div>
+  <p class="note rv" data-i="pnote"></p>
+</div></section>
+
+<section class="band sys" id="system"><div class="wrap">
+  <h2 data-i="st">How the system works</h2>
+  <p class="lead" data-i="ss"></p>
+  <div class="pipe" id="pipe"></div>
+  <div class="det rv" id="det" aria-live="polite"></div>
+</div></section>
+
+<section class="band arch" id="arch"><div class="wrap">
+  <h2 data-i="arch_t">Architecture: from input to output</h2>
+  <p class="lead" data-i="arch_s"></p>
+  <div class="actl"><button class="btn" id="aplay"></button><button class="btn" id="aprev" data-i="a_prev"></button><button class="btn" id="anext" data-i="a_next"></button><span class="astep" id="astep"></span></div>
+  <div class="agrid" id="agrid"></div>
+  <div class="adet" id="adet" aria-live="polite"></div>
+  <p class="small" data-i="a_note"></p>
+</div></section>
+
+<section class="band" id="sim"><div class="wrap">
+  <h2 data-i="simt">Interactive simulation</h2>
+  <p class="lead" data-i="sims"></p>
+  <div class="ctl">
+    <div class="seg" role="group"><button id="mBase" class="bad" aria-pressed="false" data-i="mb"></button><button id="mProp" aria-pressed="true" data-i="mp"></button></div>
+    <button class="btn" id="play"></button>
+    <button class="btn" id="reset" data-i="rs"></button>
+    <div class="seg" role="group" id="spd"><button data-s="1" aria-pressed="true">1×</button><button data-s="2" aria-pressed="false">2×</button><button data-s="4" aria-pressed="false">4×</button></div>
+  </div>
+  <div class="ctl camctl"><span data-i="cams" class="cl"></span><div class="seg" role="group" id="camb"><button data-c="0" aria-pressed="true">C1</button><button data-c="1" aria-pressed="true">C2</button><button data-c="2" aria-pressed="true">C3</button><button data-c="3" aria-pressed="true">C4</button><button data-c="4" aria-pressed="false">C5</button></div><span class="cov"><span data-i="cov"></span> <b id="vCov">0%</b></span></div>
+  <p class="small" data-i="camhint"></p>
+  <p class="mexp" id="mexp"></p>
+  <div class="sfig"><canvas id="simc" dir="ltr" aria-label="Kitchen tracking simulation"></canvas></div>
+  <div class="stats">
+    <div class="stat err"><span data-i="s_sw"></span><b id="vSw">0</b></div>
+    <div class="stat"><span data-i="s_id"></span><b id="vId">0</b></div>
+    <div class="stat"><span data-i="s_real"></span><b id="vReal">6</b></div>
+    <div class="stat"><span data-i="s_clk"></span><b id="vClk">08:00</b></div>
+  </div>
+  <div class="leg"><span><i style="background:rgba(0,70,60,.25);border:1px solid #00463c"></i><span data-i="lg1"></span></span><span><i style="border:2px dashed #7ae0ff"></i><span data-i="lg2"></span></span><span><i style="background:#ff6f59"></i><span data-i="lg3"></span></span><span><i style="background:rgba(255,111,89,.35)"></i><span data-i="lg4"></span></span></div>
+  <p class="small" data-i="simnote"></p>
+</div></section>
+
+<section class="band" id="compare" style="border-top:1px solid var(--line)"><div class="wrap">
+  <h2 data-i="ct">Comparison with previous methods</h2>
+  <p class="lead" data-i="cs"></p>
+  <div class="mtabs" id="mtabs" role="group"></div>
+  <div class="cmpwrap">
+    <div class="map"><svg id="cmap" dir="ltr" aria-label="Qualitative positioning map"></svg></div>
+    <div class="cdet" id="cdet" aria-live="polite"></div>
+  </div>
+  <div class="scroll"><table class="cmp" id="ctab"></table></div>
+  <p class="small" data-i="cnote"></p>
+</div></section>
+
+<section class="band gap" id="gap"><div class="wrap">
+  <h2 data-i="gt">Research gap and contribution</h2>
+  <p class="lead" data-i="gs"></p>
+  <div class="ggrid" id="ggrid"></div>
+  <div class="demo" id="demo">
+    <h3 data-i="dw">See each contribution in action</h3>
+    <div class="dtabs" role="group" id="dtabs"></div>
+    <div class="dfig"><canvas id="dc" dir="ltr" aria-label="Contribution animation"></canvas></div>
+    <div class="dbar"><button class="dbtn" id="dplay"></button><button class="dbtn" id="dre" data-i="replay"></button><div class="steps" id="dsteps"></div></div>
+    <p class="dcap" id="dcap" aria-live="polite"></p>
+    <p class="dnote" data-i="dnote"></p>
+  </div>
+</div></section>
+
+<section class="band out" id="output"><div class="wrap">
+  <h2 data-i="ot">Expected output</h2>
+  <p class="lead" data-i="os"></p>
+  <div class="tl rv" id="tl"></div>
+  <p class="small" data-i="sample"></p>
+  <h3 class="sub" id="eval" data-i="mt">How success is measured</h3>
+  <div class="mgrid" id="mg"></div>
+  <h3 class="sub" data-i="dt">Datasets</h3>
+  <div class="dgrid" id="dg"></div>
+</div></section>
+
+<footer class="band"><div class="wrap"><p data-i="foot"></p></div></footer>
+
+<script>
+{
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const T={
+en:{nav8:"Architecture",arch_t:"Architecture: from input to output",arch_s:"Follow the data through the system. Select any block, or play the walkthrough to watch data move from the cameras to the final reports.",
+colIn:"Inputs",colProc:"Processing",colOut:"Outputs",a_play:"▶ Play walkthrough",a_pause:"❚❚ Pause walkthrough",a_prev:"Previous",a_next:"Next",a_op:"What happens",a_smp:"Data sample",a_pred:"prediction",a_in:"In",a_out:"Out",
+a_note:"Planned architecture. Values in the data samples are examples.",
+A_I1n:"Multi-camera video",A_I1o:"Synchronised video from several fixed cameras whose views overlap on the same floor.",A_I1i:"Cameras on the kitchen floor",A_I1u:"Frames + timestamp + camera ID",
+A_I2n:"Camera calibration",A_I2o:"Intrinsic and extrinsic parameters of each camera, reduced to one homography H that maps floor points in the image to floor coordinates.",A_I2i:"Calibration parameters",A_I2u:"One homography H per camera",
+A_I3n:"Floor plan and zones",A_I3o:"A metric floor map with named zones (stove, prep, sink…) and the entrance, used later to turn positions into activities.",A_I3i:"Kitchen layout",A_I3u:"Zone polygons in metres",
+A_P0n:"Sync and preprocessing",A_P0o:"Frames from all cameras that share the same timestamp are grouped into one frame set and resized to the detector's input size.",A_P0i:"Frames from all cameras",A_P0u:"Time-aligned frame sets",
+A_P1n:"Person detection · YOLO",A_P1o:"A YOLO detector (v8 / v11) runs on every frame and keeps only the person class, giving a box and a confidence score for each person.",A_P1i:"Frame set",A_P1u:"Person boxes + scores",
+A_P2n:"Per-camera tracking · ByteTrack",A_P2o:"ByteTrack predicts every track with a Kalman filter, matches high-score boxes first and then low-score boxes, and so builds local tracklets in each camera.",A_P2i:"Boxes over time",A_P2u:"Local tracklets per camera",
+A_P3n:"Ground-plane projection",A_P3o:"The bottom-centre of each box (the feet) is multiplied by the camera's homography, giving a position in metres on the shared floor map.",A_P3i:"Tracklets + homography",A_P3u:"Floor positions (X, Y)",
+A_P4n:"Cross-camera association",A_P4o:"Points from different cameras that fall close together at the same moment are matched (distance cost with a gate) and merged. A motion model on the floor carries each identity through blind spots.",A_P4i:"Floor positions from all cameras",A_P4u:"Global tracks, one per person",
+A_P5n:"Face anchors",A_P5o:"Optional: when a usable face is visible, its embedding (AdaFace / ArcFace) is compared with stored anchors to re-link an identity after a long gap.",A_P5i:"Person crops",A_P5u:"Identity re-links",
+A_P6n:"Zone and attendance analytics",A_P6o:"Each global track is intersected with the zones over time, giving arrival, departure, time per zone and total hours.",A_P6i:"Global tracks + zones",A_P6u:"Enter, leave and dwell events",
+A_O1n:"Global tracks",A_O1o:"One trajectory per real person: global ID, time, floor position and the cameras that saw them.",A_O1i:"Association result",A_O1u:"Trajectory table",
+A_O2n:"Attendance report",A_O2o:"For each worker: first arrival, last departure and total hours on site.",A_O2i:"Enter and leave events",A_O2u:"Hours per worker",
+A_O3n:"Activity timeline",A_O3o:"For each worker: the sequence of zones visited and the time spent in each.",A_O3i:"Zone events",A_O3u:"Zone sequence per worker",
+A_O4n:"Evaluation",A_O4o:"Predictions are compared with the ground truth using HOTA, IDF1, MOTA, ID switches and attendance-time error.",A_O4i:"Predictions + ground truth",A_O4u:"Metric scores",
+watch:"Watch the simulation",dw:"See each contribution in action",replay:"Replay",dnote:"Animated illustration with example values, not experimental results.",
+lab_gt:"Ground truth",lab_b:"Baseline",lab_p:"Proposed",lab_clip:"Short benchmark clip",lab_true:"True hours",lab_ids:"IDs",lab_err:"Error",lab_app:"Appearance similarity",lab_floor:"Floor map",lab_tie:"Almost a tie",lab_anch:"Face anchors",lab_break:"Break 12:00–12:30",lab_relink:"Re-linked",lab_face:"Face crop",
+d1a:"Inside a short benchmark clip (dashed box), even the baseline looks perfect: one worker, one ID.",d1b:"Across the full shift, hand-offs, occlusions and the lunch break split the same worker into five IDs.",d1c:"Shift-level metrics expose this: the baseline credits this worker with only one fragment of the day, while the proposed system keeps the whole shift.",
+d2a:"Two cameras see the same two workers. In identical uniforms they look interchangeable.",d2b:"Matching by appearance: the similarity scores are almost equal, so the match is a guess.",d2c:"Instead, each foot point is projected onto the shared floor map using the camera's homography.",d2d:"Same place at the same time means the same person: one global ID in every camera.",
+d3a:"Earlier in the shift, a clear face view of each worker was stored as an identity anchor.",d3b:"Both workers leave for a 30-minute break, out of every camera's view; their tracks end.",d3c:"Two workers come back through the door. Position and uniform cannot tell who is who.",d3d:"When a usable face appears, it is compared with the stored anchors.",d3e:"The best match re-links the old identity, ID 3; the other worker is resolved the same way.",
+nav7:"Contribution",gt:"Research gap and contribution",gs:"What earlier work leaves open, and what this thesis adds to close it.",gapl:"Gap",conl:"Contribution",
+g1g:"Identity is evaluated only within short sessions, never across a full working day.",g1c:"A shift-level evaluation protocol: long-term identity accuracy plus attendance-time error.",
+g2g:"Appearance-based ReID fails when everyone wears the same uniform.",g2c:"Geometry-first association on a shared floor map, so identity follows position rather than clothing.",
+g3g:"Face features are not used inside multi-camera tracking association.",g3c:"Face anchors that re-link identities after long gaps, added only if results allow.",
+cams:"Cameras",cov:"Floor coverage",camhint:"Turn cameras on or off. C5 is a ceiling camera behind the prep island. Fewer cameras mean larger blind areas (red) and more ID switches.",lg4:"Blind area",
+nav6:"Comparison",ct:"Comparison with previous methods",cs:"Four representative earlier approaches, compared by design. Select a method to see how it works and where it breaks in a kitchen full of identical uniforms.",
+cnote:"Qualitative comparison of design properties described in each paper, not measured results. The proposed column lists design goals that the experiments must confirm.",
+how:"How it works",weak:"Weak spot in the kitchen",risk:"Risks to test",yes:"Yes",part:"Partly",no:"No",crit:"Criterion",
+ax1:"Cross-camera link: appearance → floor geometry",ax2:"Identity horizon: seconds → full shift",none:"no cross-camera link",
+c1:"Links identities across cameras",c2:"Uses floor geometry (ground plane)",c3:"Robust to identical uniforms",c4:"Recovers identity after long gaps",c5:"Uses face features",c6:"Evaluated over a full working day",c7:"Modular, no end-to-end multi-view training",
+mPn:"Proposed (target)",
+mAh:"Links boxes from frame to frame inside one camera using motion and box overlap, and keeps low-confidence boxes to survive brief occlusions.",mAw:"There is no link between cameras: every hand-off or long occlusion produces a new ID.",
+mBh:"Tracks each camera separately, then matches tracklets across cameras by OSNet appearance embeddings.",mBw:"With identical uniforms, different workers get nearly the same embedding, so cross-camera matches go wrong.",
+mCh:"Projects features from all views onto a bird's-eye view, detects each person once there, then learns re-ID features for association over time.",mCw:"Needs end-to-end training on calibrated multi-view data and is reported on short sequences, not a whole shift; links over time still lean on appearance.",
+mDh:"A clothes-changing ReID method: it enriches the gallery with face features so appearance ReID can follow people in new outfits.",mDw:"It is a retrieval step, not a tracker, and helps only when a usable face is visible.",
+mPh:"Detection and tracking in each camera, then association on one shared floor map, so identity is decided by where people stand rather than how they look. Optional face anchors re-link identities after long gaps.",mPw:"Depends on accurate calibration and synchronised cameras; the gains shown on this page are goals to be tested.",
+nav1:"The problem",nav2:"How it works",nav3:"Simulation",nav4:"Expected output",nav5:"Evaluation",
+kick:"M.Sc. research · AI Engineering · Amirkabir University of Technology",h1:"Who is who, across every camera",
+hsub:"Multi-camera multi-person detection and tracking in a uniformed workplace, keeping one stable identity per worker for the whole shift.",
+cta:"Run the simulation",hcap:"Live view: four cameras watch a kitchen. Each colour is one worker's global identity.",
+pt:"The problem",ps:"Tracking one person inside one camera is largely solved. Keeping the same identity across many cameras, in a room where everyone wears the same uniform, is not.",
+p1t:"Identical uniforms",p1d:"Every worker looks almost the same to an appearance model, so when two paths cross the tracker can swap their identities.",
+p2t:"Camera hand-off",p2d:"Each camera tracks on its own. When a worker walks into the next camera's view, they are counted as a new person.",
+p3t:"Occlusion",p3d:"Counters, fridges and other workers hide people. When someone reappears, the old track is gone and a new ID starts.",
+pnote:"Result: one worker turns into many IDs over a shift, so attendance hours and activity logs become wrong.",
+fx_sw:"ID switch",fx_new:"New ID",fx_lost:"Track lost",cam:"Camera",
+st:"How the system works",ss:"Six stages turn raw video from many cameras into one identity per person. Select a stage to see what it does.",
+s1:"Camera streams",s1d:"Synchronised video from several calibrated cameras whose views overlap.",s1i:"Cameras",s1o:"Frames + timestamps",
+s2:"Person detection",s2d:"YOLO (v8 / v11) finds every person in every frame as a bounding box with a confidence score.",s2i:"Frames",s2o:"Boxes + scores",
+s3:"Per-camera tracking",s3d:"ByteTrack links boxes over time inside each camera, producing short local tracklets.",s3i:"Boxes",s3o:"Local tracklets",
+s4:"Ground-plane projection",s4d:"The foot point of each box is projected onto one shared floor map using each camera's homography.",s4i:"Tracklets",s4o:"Floor position (x, y)",
+s5:"Cross-camera association",s5d:"Tracklets that stand at the same floor position at the same time, in different cameras, are merged into one global identity.",s5i:"Floor positions",s5o:"Global IDs",
+s6:"Identities and analytics",s6d:"Global tracks become attendance hours, zone occupancy and activity timelines for each worker.",s6i:"Global tracks",s6o:"Hours, zones, timelines",
+sx:"Face-anchored ReID",sxd:"Optional extension, added only if results are acceptable: low-quality face recognition (AdaFace / ArcFace) re-anchors identities after long gaps, where identical uniforms make appearance useless.",sxi:"Face crops",sxo:"Identity anchors",
+opt:"Optional extension",step:"Stage",inp:"Input",outp:"Output",
+simt:"Interactive simulation",sims:"Switch between a baseline that tracks each camera separately and the proposed multi-camera system, and watch the labels above each worker.",
+mb:"Baseline: each camera alone",mp:"Proposed: multi-camera",play:"Play",pause:"Pause",rs:"Restart",
+eb:"Each camera counts people on its own. A worker gets a new label whenever they change camera or vanish behind the island, and labels swap when paths cross.",
+ep:"All cameras share one floor map. Each worker keeps one colour and one ID, even while hidden behind the prep island (dashed ring = predicted position).",
+s_sw:"ID switches",s_id:"Identities created",s_real:"Real workers",s_clk:"Shift clock",
+lg1:"Camera field of view",lg2:"Not visible: predicted position",lg3:"ID switch",
+simnote:"Simplified illustration of the idea, not experimental results.",
+z_ent:"Entrance",z_sto:"Storage",z_stove:"Stove",z_prep:"Prep island",z_sink:"Sink",z_plate:"Plating",
+ot:"Expected output",os:"For every worker, a full-shift timeline: when they arrived, where they spent their time and when they left. Gaps are breaks or time off camera.",
+w:"Worker",onsite:"On site",main:"Main zone",sample:"Sample data for illustration.",
+mt:"How success is measured",hi:"Higher is better",lo:"Lower is better",
+m1:"Balances detection quality and association quality in one score.",m2:"How long each predicted ID stays matched to the right person.",m3:"Classic accuracy: misses, false alarms and ID switches together.",m4:"How many times an identity jumps from one person to another.",m5:"Attendance-time error: gap between measured and true hours on site.",
+dt:"Datasets",r1:"Main benchmark",r2:"Fallback",r3:"Controlled tests",
+d1:"Large multi-camera dataset with calibrated, overlapping views; includes Industry and Cafe environments.",d2:"Seven calibrated, overlapping cameras over a crowded outdoor square.",d3:"Synthetic scene with six cameras, useful for controlled experiments.",
+foot:"Mohammed Ali Maliky · M.Sc. AI Engineering, Amirkabir University of Technology · Supervisor: Mahdi Javanmardi"},
+ar:{nav8:"المعمارية",arch_t:"المعمارية: من المدخلات إلى المخرجات",arch_s:"تابع البيانات وهي تمر عبر النظام. اختر أي كتلة، أو شغّل الجولة لترى البيانات تنتقل من الكاميرات إلى التقارير النهائية.",
+colIn:"المدخلات",colProc:"المعالجة",colOut:"المخرجات",a_play:"▶ تشغيل الجولة",a_pause:"❚❚ إيقاف الجولة",a_prev:"السابق",a_next:"التالي",a_op:"ماذا يحدث",a_smp:"عينة من البيانات",a_pred:"تنبؤ",a_in:"دخول",a_out:"خروج",
+a_note:"معمارية مخطط لها. القيم في عينات البيانات أمثلة.",
+A_I1n:"فيديو متعدد الكاميرات",A_I1o:"فيديو متزامن من عدة كاميرات ثابتة تتداخل مجالات رؤيتها على نفس الأرضية.",A_I1i:"كاميرات في المطبخ",A_I1u:"إطارات + توقيت + رقم الكاميرا",
+A_I2n:"معايرة الكاميرات",A_I2o:"المعاملات الداخلية والخارجية لكل كاميرا، تُختصر إلى مصفوفة إسقاط واحدة H تحوّل نقاط الأرضية في الصورة إلى إحداثيات على الأرضية.",A_I2i:"معاملات المعايرة",A_I2u:"مصفوفة H لكل كاميرا",
+A_I3n:"مخطط الأرضية والمناطق",A_I3o:"خريطة أرضية بالأمتار فيها مناطق مسمّاة (الطبّاخ، التحضير، المغسلة…) والمدخل، تُستخدم لاحقاً لتحويل المواقع إلى أنشطة.",A_I3i:"تخطيط المطبخ",A_I3u:"مضلّعات المناطق بالأمتار",
+A_P0n:"المزامنة والمعالجة المسبقة",A_P0o:"تُجمع إطارات كل الكاميرات التي لها نفس التوقيت في مجموعة إطارات واحدة، ويُغيَّر حجمها إلى حجم مدخل نموذج الكشف.",A_P0i:"إطارات كل الكاميرات",A_P0u:"مجموعات إطارات متزامنة",
+A_P1n:"كشف الأشخاص · YOLO",A_P1o:"نموذج YOLO (v8 / v11) يعمل على كل إطار ويحتفظ بفئة الشخص فقط، فيعطي مربّعاً ودرجة ثقة لكل شخص.",A_P1i:"مجموعة إطارات",A_P1u:"مربّعات الأشخاص + الدرجات",
+A_P2n:"التتبّع داخل كل كاميرا · ByteTrack",A_P2o:"خوارزمية ByteTrack تتنبأ بكل مسار بمرشّح كالمان، وتطابق المربّعات عالية الدرجة أولاً ثم منخفضة الدرجة، فتبني مسارات محلية في كل كاميرا.",A_P2i:"مربّعات عبر الزمن",A_P2u:"مسارات محلية لكل كاميرا",
+A_P3n:"الإسقاط على الأرضية",A_P3o:"منتصف أسفل كل مربّع (القدمان) يُضرب بمصفوفة الإسقاط للكاميرا، فينتج موقع بالأمتار على خريطة الأرضية المشتركة.",A_P3i:"المسارات + مصفوفة الإسقاط",A_P3u:"مواقع على الأرضية (X, Y)",
+A_P4n:"الربط بين الكاميرات",A_P4o:"النقاط القادمة من كاميرات مختلفة والقريبة من بعضها في نفس اللحظة تُطابَق (كلفة مسافة مع بوابة) وتُدمج. ونموذج حركة على الأرضية يحمل كل هوية عبر المناطق العمياء.",A_P4i:"مواقع الأرضية من كل الكاميرات",A_P4u:"مسارات عامة، واحد لكل شخص",
+A_P5n:"مراسي الوجه",A_P5o:"اختياري: عندما يظهر وجه صالح، يُقارَن تمثيله (AdaFace / ArcFace) بالمراسي المخزّنة لإعادة ربط الهوية بعد انقطاع طويل.",A_P5i:"صور الأشخاص المقتطعة",A_P5u:"إعادة ربط الهويات",
+A_P6n:"تحليل المناطق والحضور",A_P6o:"كل مسار عام يُقاطَع مع المناطق عبر الزمن، فنحصل على وقت الوصول والمغادرة والوقت في كل منطقة ومجموع الساعات.",A_P6i:"المسارات العامة + المناطق",A_P6u:"أحداث دخول وخروج ومكوث",
+A_O1n:"المسارات العامة",A_O1o:"مسار واحد لكل شخص حقيقي: الهوية العامة والوقت والموقع على الأرضية والكاميرات التي رأته.",A_O1i:"نتيجة الربط",A_O1u:"جدول المسارات",
+A_O2n:"تقرير الحضور",A_O2o:"لكل عامل: أول وصول وآخر مغادرة ومجموع ساعات التواجد.",A_O2i:"أحداث الدخول والخروج",A_O2u:"الساعات لكل عامل",
+A_O3n:"الجدول الزمني للنشاط",A_O3o:"لكل عامل: تسلسل المناطق التي زارها والوقت الذي قضاه في كل منها.",A_O3i:"أحداث المناطق",A_O3u:"تسلسل المناطق لكل عامل",
+A_O4n:"التقييم",A_O4o:"تُقارَن التنبؤات بالحقيقة الأرضية باستخدام HOTA وIDF1 وMOTA وتبدّلات الهوية وخطأ وقت الحضور.",A_O4i:"التنبؤات + الحقيقة الأرضية",A_O4u:"درجات المقاييس",
+watch:"شاهد المحاكاة",dw:"شاهد كل مساهمة وهي تعمل",replay:"إعادة التشغيل",dnote:"رسوم متحركة توضيحية بقيم مثالية، وليست نتائج تجريبية.",
+lab_gt:"الحقيقة الأرضية",lab_b:"الأساسية",lab_p:"المقترحة",lab_clip:"مقطع تقييم قصير",lab_true:"الساعات الحقيقية",lab_ids:"هويات",lab_err:"الخطأ",lab_app:"تشابه المظهر",lab_floor:"خريطة الأرضية",lab_tie:"تعادل تقريباً",lab_anch:"مراسي الوجه",lab_break:"استراحة 12:00–12:30",lab_relink:"أُعيد الربط",lab_face:"صورة الوجه",
+d1a:"داخل مقطع تقييم قصير (المربع المنقّط) حتى الطريقة الأساسية تبدو مثالية: عامل واحد، هوية واحدة.",d1b:"على امتداد الوردية الكاملة، يقسّم الانتقال بين الكاميرات والحجب واستراحة الغداء العامل نفسه إلى خمس هويات.",d1c:"مقاييس مستوى الوردية تكشف ذلك: الطريقة الأساسية تنسب للعامل جزءاً واحداً فقط من يومه، بينما يحتفظ النظام المقترح بالوردية كلها.",
+d2a:"كاميرتان تريان نفس العاملَين. بالزي الموحّد يبدوان قابلين للتبديل.",d2b:"المطابقة بالمظهر: درجات التشابه متساوية تقريباً، فالمطابقة مجرد تخمين.",d2c:"بدلاً من ذلك، تُسقَط نقطة القدم لكل شخص على خريطة الأرضية المشتركة باستخدام مصفوفة الإسقاط للكاميرا.",d2d:"نفس المكان في نفس الوقت يعني نفس الشخص: هوية عامة واحدة في كل كاميرا.",
+d3a:"في وقت سابق من الوردية، خُزّنت صورة وجه واضحة لكل عامل كمرساة للهوية.",d3b:"يخرج العاملان لاستراحة 30 دقيقة خارج مجال كل الكاميرات، فتنتهي مساراتهما.",d3c:"يعود عاملان من الباب. الموقع والزي لا يكفيان لمعرفة مَن هو مَن.",d3d:"عندما يظهر وجه صالح، يُقارَن بالمراسي المخزّنة.",d3e:"أفضل تطابق يعيد ربط الهوية القديمة ID 3، ويُحسم العامل الآخر بنفس الطريقة.",
+nav7:"المساهمة",gt:"الفجوة البحثية والمساهمة",gs:"ما الذي تتركه الأعمال السابقة مفتوحاً، وما الذي تضيفه هذه الرسالة لسدّه.",gapl:"الفجوة",conl:"المساهمة",
+g1g:"تُقيَّم الهوية فقط داخل جلسات قصيرة، ولا تُقيَّم أبداً على يوم عمل كامل.",g1c:"بروتوكول تقييم على مستوى الوردية: دقة الهوية طويلة المدى مع خطأ وقت الحضور.",
+g2g:"إعادة التعرّف المعتمدة على المظهر تفشل عندما يلبس الجميع نفس الزي.",g2c:"ربط يعتمد على الهندسة أولاً عبر خريطة أرضية مشتركة، فتتبع الهوية الموقعَ لا الملابس.",
+g3g:"ملامح الوجه غير مستخدمة داخل ربط التتبّع متعدد الكاميرات.",g3c:"مراسي وجه تعيد ربط الهويات بعد الانقطاعات الطويلة، تُضاف فقط إذا سمحت النتائج.",
+cams:"الكاميرات",cov:"تغطية الأرضية",camhint:"شغّل الكاميرات أو أطفئها. C5 كاميرا سقفية خلف طاولة التحضير. كلما قلّت الكاميرات كبرت المناطق العمياء (بالأحمر) وزادت تبدّلات الهوية.",lg4:"منطقة عمياء",
+nav6:"المقارنة",ct:"مقارنة مع الطرق السابقة",cs:"أربع طرق سابقة تمثيلية، مقارنة من حيث التصميم. اختر طريقة لترى كيف تعمل وأين تفشل في مطبخ كل عامليه بنفس الزي.",
+cnote:"مقارنة نوعية لخصائص التصميم كما وُصفت في كل ورقة، وليست نتائج مقاسة. عمود الطريقة المقترحة يمثّل أهدافاً تصميمية يجب أن تؤكدها التجارب.",
+how:"كيف تعمل",weak:"نقطة الضعف في المطبخ",risk:"مخاطر يجب اختبارها",yes:"نعم",part:"جزئياً",no:"لا",crit:"المعيار",
+ax1:"الربط بين الكاميرات: المظهر ← هندسة الأرضية",ax2:"مدى الهوية: ثوانٍ ← وردية كاملة",none:"لا ربط بين الكاميرات",
+c1:"تربط الهويات بين الكاميرات",c2:"تستخدم هندسة الأرضية",c3:"تتحمّل الزي الموحّد",c4:"تستعيد الهوية بعد انقطاع طويل",c5:"تستخدم ملامح الوجه",c6:"مُقيَّمة على يوم عمل كامل",c7:"معيارية، بدون تدريب شامل متعدد المناظر",
+mPn:"المقترحة (هدف)",
+mAh:"تربط المربّعات من إطار لإطار داخل كاميرا واحدة باستخدام الحركة وتداخل المربّعات، وتحتفظ بالمربّعات منخفضة الثقة لتتجاوز الحجب القصير.",mAw:"لا يوجد ربط بين الكاميرات: كل انتقال أو حجب طويل ينتج رقماً جديداً.",
+mBh:"تتتبّع كل كاميرا لوحدها، ثم تطابق المسارات بين الكاميرات بتمثيلات المظهر من OSNet.",mBw:"مع الزي الموحّد يحصل العاملون المختلفون على تمثيلات شبه متطابقة، فتخطئ المطابقة بين الكاميرات.",
+mCh:"تُسقط ملامح كل المناظر على منظر علوي (BEV)، وتكشف كل شخص مرة واحدة هناك، ثم تتعلّم ملامح re-ID للربط عبر الزمن.",mCw:"تحتاج تدريباً شاملاً على بيانات متعددة المناظر ومعايَرة، ونتائجها على مقاطع قصيرة لا على وردية كاملة؛ والربط عبر الزمن ما زال يعتمد على المظهر.",
+mDh:"طريقة لإعادة التعرّف مع تغيّر الملابس: تُغني معرض الصور بملامح الوجه حتى يتمكن نموذج المظهر من تتبّع الأشخاص بملابس جديدة.",mDw:"هي خطوة استرجاع وليست متتبّعاً، ولا تفيد إلا عندما يكون الوجه ظاهراً وواضحاً.",
+mPh:"كشف وتتبّع داخل كل كاميرا، ثم ربط على خريطة أرضية مشتركة واحدة، فتُحدَّد الهوية بمكان وقوف الشخص لا بشكله. ومراسي الوجه الاختيارية تعيد ربط الهويات بعد الانقطاعات الطويلة.",mPw:"تعتمد على معايرة دقيقة وكاميرات متزامنة؛ والتحسينات المعروضة في هذه الصفحة أهداف يجب اختبارها.",
+nav1:"المشكلة",nav2:"كيف يعمل",nav3:"المحاكاة",nav4:"الناتج المتوقع",nav5:"التقييم",
+kick:"بحث ماجستير · هندسة الذكاء الاصطناعي · جامعة أمير كبير للتكنولوجيا",h1:"مَن هو مَن، عبر كل الكاميرات",
+hsub:"كشف وتتبّع عدة أشخاص عبر عدة كاميرات في بيئة عمل بزيّ موحّد، مع الحفاظ على هوية ثابتة لكل عامل طوال الوردية.",
+cta:"شغّل المحاكاة",hcap:"عرض حي: أربع كاميرات تراقب مطبخاً. كل لون يمثّل الهوية العامة لعامل واحد.",
+pt:"المشكلة",ps:"تتبّع شخص واحد داخل كاميرا واحدة مشكلة محلولة إلى حدّ كبير. لكن الحفاظ على نفس الهوية عبر كاميرات متعددة، في مكان يلبس فيه الجميع نفس الزي، ما زال غير محلول.",
+p1t:"زيّ موحّد",p1d:"كل العاملين يبدون متشابهين تقريباً لنموذج المظهر، فعندما تتقاطع مساراتهم قد يبدّل المتتبّع هوياتهم.",
+p2t:"الانتقال بين الكاميرات",p2d:"كل كاميرا تتتبّع بشكل مستقل. عندما يدخل العامل مجال الكاميرا التالية يُحسب كشخص جديد.",
+p3t:"الحجب",p3d:"الطاولات والثلاجات والعاملون الآخرون يحجبون الأشخاص. وعندما يظهر الشخص من جديد يكون مساره القديم قد ضاع ويبدأ رقم جديد.",
+pnote:"النتيجة: العامل الواحد يتحوّل إلى عدة هويات خلال الوردية، فتصبح ساعات الحضور وسجلات النشاط خاطئة.",
+fx_sw:"تبدّل الهوية",fx_new:"هوية جديدة",fx_lost:"ضاع المسار",cam:"كاميرا",
+st:"كيف يعمل النظام",ss:"ست مراحل تحوّل الفيديو الخام من عدة كاميرات إلى هوية واحدة لكل شخص. اختر مرحلة لترى ماذا تفعل.",
+s1:"بثّ الكاميرات",s1d:"فيديو متزامن من عدة كاميرات معايَرة ومجالات رؤيتها متداخلة.",s1i:"الكاميرات",s1o:"إطارات + توقيت",
+s2:"كشف الأشخاص",s2d:"نموذج YOLO (v8 / v11) يجد كل شخص في كل إطار كمربّع محيط مع درجة ثقة.",s2i:"الإطارات",s2o:"مربّعات + درجات",
+s3:"التتبّع داخل كل كاميرا",s3d:"خوارزمية ByteTrack تربط المربّعات عبر الزمن داخل كل كاميرا، فتنتج مسارات محلية قصيرة.",s3i:"المربّعات",s3o:"مسارات محلية",
+s4:"الإسقاط على الأرضية",s4d:"نقطة القدم لكل مربّع تُسقَط على خريطة أرضية مشتركة باستخدام مصفوفة الإسقاط (homography) لكل كاميرا.",s4i:"المسارات",s4o:"موقع على الأرضية (x, y)",
+s5:"الربط بين الكاميرات",s5d:"المسارات التي تقف في نفس الموقع على الأرضية وفي نفس الوقت، من كاميرات مختلفة، تُدمج في هوية عامة واحدة.",s5i:"مواقع الأرضية",s5o:"هويات عامة",
+s6:"الهويات والتحليلات",s6d:"المسارات العامة تتحوّل إلى ساعات حضور وإشغال للمناطق وجداول زمنية للنشاط لكل عامل.",s6i:"المسارات العامة",s6o:"ساعات، مناطق، جداول",
+sx:"إعادة التعرّف بالوجه",sxd:"امتداد اختياري يُضاف فقط إذا كانت النتائج مقبولة: التعرّف على الوجوه منخفضة الجودة (AdaFace / ArcFace) يعيد تثبيت الهويات بعد الانقطاعات الطويلة، حيث يجعل الزي الموحّد المظهر عديم الفائدة.",sxi:"صور الوجوه",sxo:"مراسي الهوية",
+opt:"امتداد اختياري",step:"المرحلة",inp:"المدخل",outp:"المخرج",
+simt:"محاكاة تفاعلية",sims:"بدّل بين طريقة أساسية تتتبّع كل كاميرا لوحدها والنظام المقترح متعدد الكاميرات، وراقب الأرقام فوق كل عامل.",
+mb:"الأساسية: كل كاميرا لوحدها",mp:"المقترح: متعدد الكاميرات",play:"تشغيل",pause:"إيقاف",rs:"إعادة",
+eb:"كل كاميرا تعدّ الأشخاص لوحدها. العامل يأخذ رقماً جديداً كلما انتقل لكاميرا أخرى أو اختفى خلف طاولة التحضير، وتتبدّل الأرقام عند تقاطع المسارات.",
+ep:"كل الكاميرات تشترك بخريطة أرضية واحدة. كل عامل يحتفظ بلون واحد ورقم واحد، حتى وهو مخفي خلف طاولة التحضير (الدائرة المنقّطة = الموقع المتوقَّع).",
+s_sw:"تبدّلات الهوية",s_id:"هويات مُنشأة",s_real:"العاملون الفعليون",s_clk:"ساعة الوردية",
+lg1:"مجال رؤية الكاميرا",lg2:"غير مرئي: موقع متوقَّع",lg3:"تبدّل الهوية",
+simnote:"توضيح مبسّط للفكرة، وليس نتائج تجريبية.",
+z_ent:"المدخل",z_sto:"المخزن",z_stove:"الطبّاخ",z_prep:"طاولة التحضير",z_sink:"المغسلة",z_plate:"التقديم",
+ot:"الناتج المتوقع",os:"لكل عامل، جدول زمني للوردية كاملة: متى وصل، وأين قضى وقته، ومتى غادر. الفراغات هي استراحات أو وقت خارج الكاميرات.",
+w:"العامل",onsite:"مدة التواجد",main:"المنطقة الرئيسية",sample:"بيانات نموذجية للتوضيح.",
+mt:"كيف نقيس النجاح",hi:"الأعلى أفضل",lo:"الأقل أفضل",
+m1:"يوازن بين جودة الكشف وجودة الربط في رقم واحد.",m2:"كم من الوقت يبقى كل رقم متوقَّع مرتبطاً بالشخص الصحيح.",m3:"الدقة الكلاسيكية: الأشخاص الفائتون والإنذارات الخاطئة وتبدّلات الهوية معاً.",m4:"عدد المرات التي تقفز فيها الهوية من شخص إلى آخر.",m5:"خطأ وقت الحضور: الفرق بين الساعات المقاسة والساعات الحقيقية في العمل.",
+dt:"مجموعات البيانات",r1:"المعيار الرئيسي",r2:"البديل",r3:"تجارب مضبوطة",
+d1:"مجموعة بيانات كبيرة متعددة الكاميرات بمجالات معايَرة ومتداخلة؛ تشمل بيئتي Industry وCafe.",d2:"سبع كاميرات معايَرة ومتداخلة فوق ساحة خارجية مزدحمة.",d3:"مشهد اصطناعي بست كاميرات، مفيد للتجارب المضبوطة.",
+foot:"محمد علي المالكي · ماجستير هندسة الذكاء الاصطناعي، جامعة أمير كبير للتكنولوجيا · المشرف: مهدي جوانمردي"},
+fa:{nav8:"معماری",arch_t:"معماری: از ورودی تا خروجی",arch_s:"داده‌ها را در مسیر سیستم دنبال کنید. هر بلوکی را انتخاب کنید یا گردش را پخش کنید تا حرکت داده از دوربین‌ها تا گزارش‌های نهایی را ببینید.",
+colIn:"ورودی‌ها",colProc:"پردازش",colOut:"خروجی‌ها",a_play:"▶ پخش گردش",a_pause:"❚❚ توقف گردش",a_prev:"قبلی",a_next:"بعدی",a_op:"چه اتفاقی می‌افتد",a_smp:"نمونه‌ی داده",a_pred:"پیش‌بینی",a_in:"ورود",a_out:"خروج",
+a_note:"معماری برنامه‌ریزی‌شده. مقادیر نمونه‌های داده مثال‌اند.",
+A_I1n:"ویدیوی چنددوربینی",A_I1o:"ویدیوی هم‌زمان از چند دوربین ثابت که دیدشان روی همان کف هم‌پوشانی دارد.",A_I1i:"دوربین‌های آشپزخانه",A_I1u:"فریم‌ها + زمان + شناسه‌ی دوربین",
+A_I2n:"کالیبراسیون دوربین‌ها",A_I2o:"پارامترهای درونی و بیرونی هر دوربین که به یک هوموگرافی H خلاصه می‌شوند؛ H نقاط کف در تصویر را به مختصات کف می‌برد.",A_I2i:"پارامترهای کالیبراسیون",A_I2u:"یک H برای هر دوربین",
+A_I3n:"نقشه‌ی کف و نواحی",A_I3o:"نقشه‌ی متری کف با نواحی نام‌دار (اجاق، آماده‌سازی، سینک…) و ورودی، که بعداً برای تبدیل موقعیت به فعالیت به کار می‌رود.",A_I3i:"چیدمان آشپزخانه",A_I3u:"چندضلعی‌های نواحی به متر",
+A_P0n:"هم‌گام‌سازی و پیش‌پردازش",A_P0o:"فریم‌های همه‌ی دوربین‌ها با زمان یکسان در یک مجموعه‌فریم گروه‌بندی و به اندازه‌ی ورودی آشکارساز تغییر اندازه داده می‌شوند.",A_P0i:"فریم‌های همه‌ی دوربین‌ها",A_P0u:"مجموعه‌فریم‌های هم‌زمان",
+A_P1n:"تشخیص افراد · YOLO",A_P1o:"آشکارساز YOLO (v8 / v11) روی هر فریم اجرا می‌شود و فقط کلاس فرد را نگه می‌دارد؛ برای هر فرد یک کادر و امتیاز اطمینان می‌دهد.",A_P1i:"مجموعه‌فریم",A_P1u:"کادرهای افراد + امتیازها",
+A_P2n:"ردیابی در هر دوربین · ByteTrack",A_P2o:"ByteTrack هر مسیر را با فیلتر کالمن پیش‌بینی می‌کند، ابتدا کادرهای پرامتیاز و سپس کم‌امتیاز را تطبیق می‌دهد و مسیرهای محلی هر دوربین را می‌سازد.",A_P2i:"کادرها در طول زمان",A_P2u:"مسیرهای محلی هر دوربین",
+A_P3n:"تصویر بر صفحه‌ی زمین",A_P3o:"مرکز پایین هر کادر (پاها) در هوموگرافی دوربین ضرب می‌شود و موقعیتی به متر روی نقشه‌ی مشترک کف به دست می‌آید.",A_P3i:"مسیرها + هوموگرافی",A_P3u:"موقعیت‌های کف (X, Y)",
+A_P4n:"پیوند بین دوربین‌ها",A_P4o:"نقاطی از دوربین‌های مختلف که در یک لحظه نزدیک هم‌اند تطبیق (هزینه‌ی فاصله با دروازه) و ادغام می‌شوند. یک مدل حرکت روی کف، هر هویت را از نواحی کور عبور می‌دهد.",A_P4i:"موقعیت‌های کف از همه‌ی دوربین‌ها",A_P4u:"مسیرهای سراسری، یکی برای هر نفر",
+A_P5n:"لنگرهای چهره",A_P5o:"اختیاری: وقتی چهره‌ی قابل استفاده‌ای دیده شود، بردار آن (AdaFace / ArcFace) با لنگرهای ذخیره‌شده مقایسه می‌شود تا هویت پس از وقفه‌ی طولانی دوباره پیوند بخورد.",A_P5i:"تصاویر برش‌خورده‌ی افراد",A_P5u:"پیوند دوباره‌ی هویت‌ها",
+A_P6n:"تحلیل نواحی و حضور",A_P6o:"هر مسیر سراسری در طول زمان با نواحی تلاقی داده می‌شود و زمان ورود، خروج، زمان در هر ناحیه و مجموع ساعات به دست می‌آید.",A_P6i:"مسیرهای سراسری + نواحی",A_P6u:"رویدادهای ورود، خروج و ماندن",
+A_O1n:"مسیرهای سراسری",A_O1o:"یک مسیر برای هر فرد واقعی: شناسه‌ی سراسری، زمان، موقعیت کف و دوربین‌هایی که او را دیده‌اند.",A_O1i:"نتیجه‌ی پیوند",A_O1u:"جدول مسیرها",
+A_O2n:"گزارش حضور",A_O2o:"برای هر کارمند: اولین ورود، آخرین خروج و مجموع ساعات حضور.",A_O2i:"رویدادهای ورود و خروج",A_O2u:"ساعات هر کارمند",
+A_O3n:"جدول زمانی فعالیت",A_O3o:"برای هر کارمند: ترتیب نواحی بازدیدشده و زمان صرف‌شده در هرکدام.",A_O3i:"رویدادهای نواحی",A_O3u:"ترتیب نواحی هر کارمند",
+A_O4n:"ارزیابی",A_O4o:"پیش‌بینی‌ها با حقیقت زمینه با معیارهای HOTA، IDF1، MOTA، تعویض هویت و خطای زمان حضور مقایسه می‌شوند.",A_O4i:"پیش‌بینی‌ها + حقیقت زمینه",A_O4u:"امتیاز معیارها",
+watch:"دیدن شبیه‌سازی",dw:"هر نوآوری را در عمل ببینید",replay:"پخش دوباره",dnote:"نمایش متحرک با مقادیر نمونه، نه نتایج آزمایشی.",
+lab_gt:"حقیقت زمینه",lab_b:"پایه",lab_p:"پیشنهادی",lab_clip:"کلیپ کوتاه ارزیابی",lab_true:"ساعات واقعی",lab_ids:"شناسه",lab_err:"خطا",lab_app:"شباهت ظاهری",lab_floor:"نقشه‌ی کف",lab_tie:"تقریباً برابر",lab_anch:"لنگرهای چهره",lab_break:"استراحت 12:00–12:30",lab_relink:"دوباره پیوند خورد",lab_face:"تصویر چهره",
+d1a:"درون یک کلیپ کوتاه ارزیابی (کادر خط‌چین)، حتی روش پایه هم بی‌نقص به نظر می‌رسد: یک کارمند، یک شناسه.",d1b:"در طول کل شیفت، جابه‌جایی بین دوربین‌ها، انسداد و استراحت ناهار همان کارمند را به پنج شناسه تقسیم می‌کند.",d1c:"معیارهای سطح شیفت این را آشکار می‌کنند: روش پایه فقط یک تکه از روز را به این کارمند نسبت می‌دهد، اما سیستم پیشنهادی کل شیفت را نگه می‌دارد.",
+d2a:"دو دوربین همان دو کارمند را می‌بینند. با لباس فرم یکسان، قابل جابه‌جایی به نظر می‌رسند.",d2b:"تطبیق با ظاهر: امتیازهای شباهت تقریباً برابرند، پس تطبیق فقط یک حدس است.",d2c:"در عوض، نقطه‌ی پای هر فرد با هوموگرافی دوربین روی نقشه‌ی مشترک کف تصویر می‌شود.",d2d:"یک مکان در یک زمان یعنی یک نفر: یک شناسه‌ی سراسری در همه‌ی دوربین‌ها.",
+d3a:"پیش‌تر در شیفت، یک نمای واضح از چهره‌ی هر کارمند به‌عنوان لنگر هویت ذخیره شده است.",d3b:"هر دو کارمند برای ۳۰ دقیقه استراحت از دید همه‌ی دوربین‌ها خارج می‌شوند؛ مسیرهایشان پایان می‌یابد.",d3c:"دو کارمند از در برمی‌گردند. موقعیت و لباس فرم نمی‌گویند چه کسی کیست.",d3d:"وقتی چهره‌ی قابل استفاده‌ای ظاهر شود، با لنگرهای ذخیره‌شده مقایسه می‌شود.",d3e:"بهترین تطابق هویت قدیمی ID 3 را دوباره پیوند می‌دهد؛ کارمند دیگر هم به همین روش مشخص می‌شود.",
+nav7:"نوآوری",gt:"شکاف پژوهشی و نوآوری",gs:"کارهای پیشین چه چیزی را باز گذاشته‌اند و این پایان‌نامه برای پر کردن آن چه می‌افزاید.",gapl:"شکاف",conl:"نوآوری",
+g1g:"هویت فقط در جلسه‌های کوتاه ارزیابی می‌شود، هرگز در طول یک روز کاری کامل.",g1c:"پروتکل ارزیابی در سطح شیفت: دقت هویت بلندمدت به‌همراه خطای زمان حضور.",
+g2g:"بازشناسی مبتنی بر ظاهر وقتی همه لباس فرم یکسان دارند شکست می‌خورد.",g2c:"پیوند مبتنی بر هندسه روی نقشه‌ی مشترک کف، تا هویت از موقعیت پیروی کند نه از لباس.",
+g3g:"ویژگی‌های چهره درون پیوند ردیابی چنددوربینی استفاده نمی‌شوند.",g3c:"لنگرهای چهره که پس از وقفه‌های طولانی هویت‌ها را دوباره پیوند می‌دهند؛ فقط در صورت اجازه‌ی نتایج افزوده می‌شوند.",
+cams:"دوربین‌ها",cov:"پوشش کف",camhint:"دوربین‌ها را روشن یا خاموش کنید. C5 یک دوربین سقفی پشت میز آماده‌سازی است. دوربین کمتر یعنی نواحی کور بزرگ‌تر (قرمز) و تعویض هویت بیشتر.",lg4:"ناحیه‌ی کور",
+nav6:"مقایسه",ct:"مقایسه با روش‌های پیشین",cs:"چهار روش نماینده‌ی پیشین، از نظر طراحی مقایسه شده‌اند. یک روش را انتخاب کنید تا ببینید چگونه کار می‌کند و در آشپزخانه‌ای پر از لباس فرم یکسان کجا شکست می‌خورد.",
+cnote:"مقایسه‌ی کیفی ویژگی‌های طراحی بر اساس توصیف هر مقاله، نه نتایج اندازه‌گیری‌شده. ستون روش پیشنهادی اهداف طراحی است که آزمایش‌ها باید تأیید کنند.",
+how:"نحوه‌ی کار",weak:"نقطه‌ضعف در آشپزخانه",risk:"ریسک‌هایی که باید آزموده شوند",yes:"بله",part:"تا حدی",no:"خیر",crit:"معیار",
+ax1:"ارتباط بین دوربین‌ها: ظاهر ← هندسه‌ی کف",ax2:"افق هویت: چند ثانیه ← کل شیفت",none:"بدون ارتباط بین دوربین‌ها",
+c1:"هویت‌ها را بین دوربین‌ها پیوند می‌دهد",c2:"از هندسه‌ی کف استفاده می‌کند",c3:"در برابر لباس فرم یکسان مقاوم است",c4:"هویت را پس از وقفه‌ی طولانی بازمی‌یابد",c5:"از ویژگی‌های چهره استفاده می‌کند",c6:"روی یک روز کاری کامل ارزیابی شده",c7:"ماژولار، بدون آموزش سرتاسری چندنمایی",
+mPn:"پیشنهادی (هدف)",
+mAh:"کادرها را فریم به فریم درون یک دوربین با حرکت و هم‌پوشانی کادر پیوند می‌دهد و کادرهای کم‌اطمینان را نگه می‌دارد تا از انسدادهای کوتاه عبور کند.",mAw:"هیچ پیوندی بین دوربین‌ها ندارد: هر جابه‌جایی یا انسداد طولانی یک شناسه‌ی جدید می‌سازد.",
+mBh:"هر دوربین را جداگانه ردیابی می‌کند، سپس مسیرها را بین دوربین‌ها با بردارهای ظاهری OSNet تطبیق می‌دهد.",mBw:"با لباس فرم یکسان، کارکنان مختلف بردارهای تقریباً یکسانی می‌گیرند و تطبیق بین دوربین‌ها اشتباه می‌شود.",
+mCh:"ویژگی‌های همه‌ی نماها را روی نمای از بالا (BEV) تصویر می‌کند، هر فرد را یک بار آنجا تشخیص می‌دهد و سپس ویژگی‌های re-ID را برای پیوند زمانی یاد می‌گیرد.",mCw:"به آموزش سرتاسری روی داده‌ی چندنمایی کالیبره نیاز دارد و نتایجش روی دنباله‌های کوتاه است نه کل شیفت؛ پیوند زمانی همچنان به ظاهر تکیه دارد.",
+mDh:"روشی برای بازشناسی با تغییر لباس: گالری را با ویژگی‌های چهره غنی می‌کند تا مدل ظاهری بتواند افراد را با لباس جدید دنبال کند.",mDw:"یک مرحله‌ی بازیابی است نه ردیاب، و فقط وقتی چهره‌ی قابل استفاده دیده شود کمک می‌کند.",
+mPh:"تشخیص و ردیابی در هر دوربین، سپس پیوند روی یک نقشه‌ی مشترک کف؛ پس هویت با جایی که فرد ایستاده تعیین می‌شود نه با ظاهرش. لنگرهای اختیاری چهره پس از وقفه‌های طولانی هویت‌ها را دوباره پیوند می‌دهند.",mPw:"به کالیبراسیون دقیق و دوربین‌های هم‌زمان وابسته است؛ بهبودهای نشان‌داده‌شده در این صفحه اهدافی‌اند که باید آزموده شوند.",
+nav1:"مسئله",nav2:"نحوه‌ی کار",nav3:"شبیه‌سازی",nav4:"خروجی مورد انتظار",nav5:"ارزیابی",
+kick:"پژوهش کارشناسی ارشد · مهندسی هوش مصنوعی · دانشگاه صنعتی امیرکبیر",h1:"چه کسی کیست، در همه‌ی دوربین‌ها",
+hsub:"تشخیص و ردیابی چندنفره با چند دوربین در محیط کاری با لباس فرم یکسان، با حفظ یک هویت پایدار برای هر کارمند در طول کل شیفت.",
+cta:"اجرای شبیه‌سازی",hcap:"نمای زنده: چهار دوربین یک آشپزخانه را می‌پایند. هر رنگ، هویت سراسری یک کارمند است.",
+pt:"مسئله",ps:"ردیابی یک نفر درون یک دوربین تا حد زیادی حل شده است. اما حفظ همان هویت در چند دوربین، در جایی که همه لباس فرم یکسان پوشیده‌اند، هنوز حل نشده است.",
+p1t:"لباس فرم یکسان",p1d:"همه‌ی کارکنان برای مدل ظاهری تقریباً یکسان دیده می‌شوند، پس وقتی مسیرهایشان از هم عبور می‌کند ردیاب ممکن است هویت‌ها را جابه‌جا کند.",
+p2t:"جابه‌جایی بین دوربین‌ها",p2d:"هر دوربین مستقل ردیابی می‌کند. وقتی کارمند وارد دید دوربین بعدی می‌شود، یک نفر جدید شمرده می‌شود.",
+p3t:"انسداد دید",p3d:"پیشخوان‌ها، یخچال‌ها و کارکنان دیگر افراد را پنهان می‌کنند. وقتی کسی دوباره دیده می‌شود، مسیر قبلی از دست رفته و شناسه‌ی جدیدی شروع می‌شود.",
+pnote:"نتیجه: یک کارمند در طول شیفت به چندین شناسه تبدیل می‌شود و ساعات حضور و گزارش فعالیت‌ها نادرست می‌شوند.",
+fx_sw:"تعویض هویت",fx_new:"شناسه‌ی جدید",fx_lost:"مسیر گم شد",cam:"دوربین",
+st:"سیستم چگونه کار می‌کند",ss:"شش مرحله، ویدیوی خام چند دوربین را به یک هویت برای هر نفر تبدیل می‌کنند. یک مرحله را انتخاب کنید تا کارش را ببینید.",
+s1:"جریان دوربین‌ها",s1d:"ویدیوی هم‌زمان از چند دوربین کالیبره‌شده با دیدهای هم‌پوشان.",s1i:"دوربین‌ها",s1o:"فریم‌ها + زمان",
+s2:"تشخیص افراد",s2d:"مدل YOLO (v8 / v11) هر فرد را در هر فریم به‌صورت یک کادر محصورکننده با امتیاز اطمینان پیدا می‌کند.",s2i:"فریم‌ها",s2o:"کادرها + امتیازها",
+s3:"ردیابی در هر دوربین",s3d:"الگوریتم ByteTrack کادرها را در طول زمان درون هر دوربین به هم وصل می‌کند و مسیرهای محلی کوتاه می‌سازد.",s3i:"کادرها",s3o:"مسیرهای محلی",
+s4:"تصویر بر صفحه‌ی زمین",s4d:"نقطه‌ی پای هر کادر با ماتریس هوموگرافی هر دوربین روی یک نقشه‌ی مشترک کف تصویر می‌شود.",s4i:"مسیرها",s4o:"موقعیت روی کف (x, y)",
+s5:"ارتباط بین دوربین‌ها",s5d:"مسیرهایی از دوربین‌های مختلف که در یک زمان در یک نقطه‌ی کف قرار دارند، در یک هویت سراسری ادغام می‌شوند.",s5i:"موقعیت‌های کف",s5o:"شناسه‌های سراسری",
+s6:"هویت‌ها و تحلیل",s6d:"مسیرهای سراسری به ساعات حضور، اشغال نواحی و جدول زمانی فعالیت هر کارمند تبدیل می‌شوند.",s6i:"مسیرهای سراسری",s6o:"ساعت‌ها، نواحی، جدول‌ها",
+sx:"بازشناسی مبتنی بر چهره",sxd:"توسعه‌ی اختیاری، فقط در صورت نتایج قابل قبول: بازشناسی چهره‌های کم‌کیفیت (AdaFace / ArcFace) پس از وقفه‌های طولانی هویت‌ها را دوباره تثبیت می‌کند، جایی که لباس فرم یکسان ظاهر را بی‌فایده می‌کند.",sxi:"تصاویر چهره",sxo:"لنگرهای هویت",
+opt:"توسعه‌ی اختیاری",step:"مرحله",inp:"ورودی",outp:"خروجی",
+simt:"شبیه‌سازی تعاملی",sims:"بین روش پایه که هر دوربین را جدا ردیابی می‌کند و سیستم چنددوربینی پیشنهادی جابه‌جا شوید و برچسب بالای هر کارمند را دنبال کنید.",
+mb:"پایه: هر دوربین جدا",mp:"پیشنهادی: چنددوربینی",play:"پخش",pause:"توقف",rs:"شروع دوباره",
+eb:"هر دوربین افراد را جداگانه می‌شمارد. هر بار که کارمند دوربین عوض کند یا پشت میز آماده‌سازی ناپدید شود برچسب تازه می‌گیرد، و هنگام عبور مسیرها برچسب‌ها جابه‌جا می‌شوند.",
+ep:"همه‌ی دوربین‌ها یک نقشه‌ی کف مشترک دارند. هر کارمند یک رنگ و یک شناسه را حفظ می‌کند، حتی وقتی پشت میز آماده‌سازی پنهان است (دایره‌ی خط‌چین = موقعیت پیش‌بینی‌شده).",
+s_sw:"تعویض هویت",s_id:"هویت‌های ساخته‌شده",s_real:"کارکنان واقعی",s_clk:"ساعت شیفت",
+lg1:"میدان دید دوربین",lg2:"دیده نمی‌شود: موقعیت پیش‌بینی‌شده",lg3:"تعویض هویت",
+simnote:"نمایش ساده‌شده‌ی ایده، نه نتایج آزمایشی.",
+z_ent:"ورودی",z_sto:"انبار",z_stove:"اجاق",z_prep:"میز آماده‌سازی",z_sink:"سینک",z_plate:"سرو",
+ot:"خروجی مورد انتظار",os:"برای هر کارمند، جدول زمانی کل شیفت: چه زمانی رسید، وقتش را کجا گذراند و چه زمانی رفت. فاصله‌ها استراحت یا زمان خارج از دید دوربین‌اند.",
+w:"کارمند",onsite:"مدت حضور",main:"ناحیه‌ی اصلی",sample:"داده‌ی نمونه برای توضیح.",
+mt:"موفقیت چگونه سنجیده می‌شود",hi:"بیشتر بهتر است",lo:"کمتر بهتر است",
+m1:"کیفیت تشخیص و کیفیت ارتباط را در یک عدد متعادل می‌کند.",m2:"هر شناسه‌ی پیش‌بینی‌شده چه مدت به فرد درست وصل می‌ماند.",m3:"دقت کلاسیک: افراد ازدست‌رفته، هشدارهای نادرست و تعویض هویت با هم.",m4:"تعداد دفعاتی که یک هویت از فردی به فرد دیگر می‌پرد.",m5:"خطای زمان حضور: اختلاف ساعات اندازه‌گیری‌شده با ساعات واقعی حضور.",
+dt:"مجموعه‌داده‌ها",r1:"معیار اصلی",r2:"جایگزین",r3:"آزمایش‌های کنترل‌شده",
+d1:"مجموعه‌داده‌ی بزرگ چنددوربینی با دیدهای کالیبره و هم‌پوشان؛ شامل محیط‌های Industry و Cafe.",d2:"هفت دوربین کالیبره و هم‌پوشان روی یک میدان شلوغ در فضای باز.",d3:"صحنه‌ی مصنوعی با شش دوربین، مناسب آزمایش‌های کنترل‌شده.",
+foot:"محمد علی مالکی · کارشناسی ارشد مهندسی هوش مصنوعی، دانشگاه صنعتی امیرکبیر · استاد راهنما: مهدی جوانمردی"}};
+let lang='en';
+const t=k=>T[lang][k]??T.en[k];
+const PAL=['#ffd166','#7ae0ff','#ff9ecb','#b4f07a','#c9a7ff','#ffb26b','#6ff0d0','#f5f08a','#9fb8ff','#ffc2a8','#a0f0ff','#ffa3a3'];
+const rnd=(a,b)=>a+Math.random()*(b-a);
+
+/* ---------- world ---------- */
+const ZONES=[{k:'z_ent',x:4,y:30},{k:'z_sto',x:15,y:12},{k:'z_stove',x:50,y:12},{k:'z_prep',x:50,y:38},{k:'z_sink',x:85,y:12},{k:'z_plate',x:86,y:45}];
+const OBS=[{x:6,y:2,w:18,h:6,k:'z_sto'},{x:36,y:2,w:28,h:6,k:'z_stove'},{x:40,y:23,w:20,h:11,k:'z_prep'},{x:76,y:2,w:18,h:6,k:'z_sink'},{x:76,y:51,w:20,h:6,k:'z_plate'}];
+const ISL=OBS[2];
+const CAMS=[{x:1,y:1,a:.6},{x:99,y:1,a:Math.PI-.6},{x:99,y:59,a:Math.PI+.6},{x:1,y:59,a:-.6},{x:50,y:59,a:-Math.PI/2}];
+const R=50,HF=.9;
+const inR=(x,y,r,m)=>x>r.x-m&&x<r.x+r.w+m&&y>r.y-m&&y<r.y+r.h+m;
+const segHits=(ax,ay,bx,by,r,m)=>{for(let i=1;i<20;i++){const f=i/20;if(inR(ax+(bx-ax)*f,ay+(by-ay)*f,r,m))return true}return false};
+function sees(p,k){const c=CAMS[k],dx=p.x-c.x,dy=p.y-c.y;if(Math.hypot(dx,dy)>R)return false;let d=Math.atan2(dy,dx)-c.a;d=Math.atan2(Math.sin(d),Math.cos(d));if(Math.abs(d)>HF)return false;return !segHits(c.x,c.y,p.x,p.y,ISL,-1.5)}
+const covCache={};
+function coverage(on){const key=on.join('');if(covCache[key])return covCache[key];let tot=0,blind=[];
+ for(let x=1;x<100;x+=2)for(let y=1;y<60;y+=2){if(OBS.some(o=>inR(x,y,o,0)))continue;tot++;const p={x,y};if(![0,1,2,3,4].some(k=>on[k]&&sees(p,k)))blind.push([x,y])}
+ return covCache[key]={blind,pct:Math.round(100*(1-blind.length/tot))}}
+function route(p,tx,ty){if(!segHits(p.x,p.y,tx,ty,ISL,2))return[[tx,ty]];const m=3.5,cs=[[ISL.x-m,ISL.y-m],[ISL.x+ISL.w+m,ISL.y-m],[ISL.x+ISL.w+m,ISL.y+ISL.h+m],[ISL.x-m,ISL.y+ISL.h+m]];let best=null,bd=1e9;
+ for(const c of cs){if(!segHits(p.x,p.y,c[0],c[1],ISL,1.5)&&!segHits(c[0],c[1],tx,ty,ISL,1.5)){const d=Math.hypot(c[0]-p.x,c[1]-p.y)+Math.hypot(tx-c[0],ty-c[1]);if(d<bd){bd=d;best=[c,[tx,ty]]}}}
+ if(best)return best;for(let i=0;i<4;i++)for(const j of[(i+1)%4,(i+3)%4]){const a=cs[i],b=cs[j];if(!segHits(p.x,p.y,a[0],a[1],ISL,1.5)&&!segHits(b[0],b[1],tx,ty,ISL,1.5)){const d=Math.hypot(a[0]-p.x,a[1]-p.y)+Math.hypot(b[0]-a[0],b[1]-a[1])+Math.hypot(tx-b[0],ty-b[1]);if(d<bd){bd=d;best=[a,b,[tx,ty]]}}}
+ return best||[[tx,ty]]}
+class Sim{constructor(n){this.n=n;this.mode='prop';this.on=[1,1,1,1,0];this.reset()}
+ reset(){this.t=0;this.sw=0;this.created=0;this.cn=[1,1,1,1,1];this.near=new Set();this.ppl=[];
+  for(let i=0;i<this.n;i++){const z=ZONES[(i+1)%ZONES.length];const p={i,x:z.x+rnd(-2,2),y:z.y+rnd(-2,2),path:[],wait:rnd(0,2),sp:rnd(7,10),trail:[],tt:0,cam:-1,lab:null,col:PAL[i],seen:true,fl:0,had:false};this.pick(p);this.ppl.push(p)}
+  if(this.mode==='prop')this.created=this.n;this.ppl.forEach(p=>this.assign(p))}
+ setMode(m){this.mode=m;this.reset()}
+ pick(p){let z;do{z=ZONES[Math.floor(Math.random()*ZONES.length)]}while(Math.hypot(z.x-p.x,z.y-p.y)<6);p.path=route(p,z.x+rnd(-3,3),z.y+rnd(-2,2))}
+ assign(p){const cs=[0,1,2,3,4].filter(k=>this.on[k]&&sees(p,k));p.seen=cs.length>0;
+  if(this.mode==='prop'){p.lab='ID '+(p.i+1);p.col=PAL[p.i];return}
+  if(!p.seen){if(p.lab){p.lab=null;p.cam=-1}return}
+  if(!cs.includes(p.cam)){p.cam=cs[0];p.lab='C'+(p.cam+1)+'-'+this.cn[p.cam]++;p.col=PAL[this.created%PAL.length];this.created++;if(p.had){this.sw++;p.fl=1}p.had=true}}
+ step(dt){this.t+=dt;
+  for(const p of this.ppl){if(p.wait>0)p.wait-=dt;else{const w=p.path[0];const dx=w[0]-p.x,dy=w[1]-p.y,d=Math.hypot(dx,dy);if(d<.4){p.path.shift();if(!p.path.length){p.wait=rnd(2,6);this.pick(p)}}else{const s=Math.min(d,p.sp*dt);p.x+=dx/d*s;p.y+=dy/d*s}}
+   p.tt+=dt;if(p.tt>.12){p.tt=0;p.trail.push([p.x,p.y]);if(p.trail.length>45)p.trail.shift()}if(p.fl>0)p.fl-=dt*.9;this.assign(p)}
+  const P=this.ppl;for(let i=0;i<P.length;i++)for(let j=i+1;j<P.length;j++){const a=P[i],b=P[j],d=Math.hypot(a.x-b.x,a.y-b.y),key=i+'-'+j;
+   if(d<2.8&&!this.near.has(key)){this.near.add(key);if(this.mode==='base'&&a.lab&&b.lab&&Math.random()<.6){[a.lab,b.lab]=[b.lab,a.lab];[a.col,b.col]=[b.col,a.col];[a.cam,b.cam]=[b.cam,a.cam];this.sw+=2;a.fl=b.fl=1}}
+   else if(d>4.5)this.near.delete(key)}}}
+
+function fit(c){const r=c.getBoundingClientRect(),d=devicePixelRatio||1,w=Math.max(1,Math.round(r.width*d)),h=Math.max(1,Math.round(r.height*d));if(c.width!==w||c.height!==h){c.width=w;c.height=h}const x=c.getContext('2d');x.setTransform(d,0,0,d,0,0);return{x,W:r.width,H:r.height}}
+function rr(x,a,b,w,h,r){x.beginPath();if(x.roundRect)x.roundRect(a,b,w,h,r);else x.rect(a,b,w,h)}
+function tag(x,txt,cx,cy,col,fs){x.font=`600 ${fs}px Inter,Vazirmatn,sans-serif`;const w=x.measureText(txt).width+fs*.9,h=fs*1.5;rr(x,cx-w/2,cy-h,w,h,h/2);x.fillStyle=col;x.fill();x.fillStyle='#06231e';x.textAlign='center';x.textBaseline='middle';x.fillText(txt,cx,cy-h/2+.5)}
+
+function drawWorld(c,sim,full){const {x,W,H}=fit(c);const s=Math.min(W/100,H/60),ox=(W-100*s)/2,oy=(H-60*s)/2,X=v=>ox+v*s,Y=v=>oy+v*s;
+ x.clearRect(0,0,W,H);x.fillStyle='#05302a';x.fillRect(0,0,W,H);
+ x.strokeStyle='rgba(230,245,200,.05)';x.lineWidth=1;x.beginPath();for(let i=5;i<100;i+=5){x.moveTo(X(i),Y(0));x.lineTo(X(i),Y(60))}for(let j=5;j<60;j+=5){x.moveTo(X(0),Y(j));x.lineTo(X(100),Y(j))}x.stroke();
+ if(full){const cv=coverage(sim.on),cs=2*s;x.fillStyle='rgba(255,111,89,.16)';cv.blind.forEach(b=>x.fillRect(X(b[0]-1),Y(b[1]-1),cs,cs))}
+ CAMS.forEach((cm,k)=>{if(!sim.on[k])return;x.save();x.beginPath();x.moveTo(X(cm.x),Y(cm.y));x.arc(X(cm.x),Y(cm.y),R*s,cm.a-HF,cm.a+HF);x.closePath();x.fillStyle='rgba(230,245,200,.07)';x.fill();x.strokeStyle='rgba(230,245,200,.18)';x.stroke();x.clip();
+  const ph=(sim.t*.3+k*.25)%1;x.strokeStyle=`rgba(230,245,200,${.3*(1-ph)})`;x.lineWidth=2;x.beginPath();x.arc(X(cm.x),Y(cm.y),R*s*ph,0,7);x.stroke();x.restore()});
+ const fs=Math.max(11,Math.min(14,s*2));
+ OBS.forEach(o=>{rr(x,X(o.x),Y(o.y),o.w*s,o.h*s,s);x.fillStyle='#0f5a4f';x.fill();x.strokeStyle='rgba(230,245,200,.3)';x.stroke();x.fillStyle='rgba(230,245,200,.85)';x.font=`500 ${fs}px Inter,Vazirmatn,sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText(t(o.k),X(o.x+o.w/2),Y(o.y+o.h/2))});
+ x.strokeStyle='#e6f5c8';x.lineWidth=4;x.beginPath();x.moveTo(X(0)+2,Y(25));x.lineTo(X(0)+2,Y(35));x.stroke();x.fillStyle='rgba(230,245,200,.7)';x.textAlign='left';x.fillText(t('z_ent'),X(1.5),Y(22.5));
+ CAMS.forEach((cm,k)=>{if(!sim.on[k]){if(full){x.setLineDash([3,3]);x.strokeStyle='rgba(230,245,200,.45)';x.lineWidth=1.5;x.beginPath();x.arc(X(cm.x),Y(cm.y),Math.max(5,s*1.3),0,7);x.stroke();x.setLineDash([])}return}const lx=cm.x+Math.cos(cm.a)*4,ly=cm.y+Math.sin(cm.a)*4;x.beginPath();x.arc(X(cm.x),Y(cm.y),Math.max(5,s*1.3),0,7);x.fillStyle='#e6f5c8';x.fill();x.fillStyle='#e6f5c8';x.textAlign='center';x.font=`700 ${fs}px Inter,sans-serif`;x.fillText('C'+(k+1),X(lx),Y(ly))});
+ for(const p of sim.ppl){const col=p.lab?p.col:'#7d9690';if(p.trail.length>1){x.strokeStyle=col;x.globalAlpha=.4;x.lineWidth=2;x.beginPath();p.trail.forEach((q,i)=>i?x.lineTo(X(q[0]),Y(q[1])):x.moveTo(X(q[0]),Y(q[1])));x.lineTo(X(p.x),Y(p.y));x.stroke();x.globalAlpha=1}}
+ for(const p of sim.ppl){const px=X(p.x),py=Y(p.y),r=Math.max(6,s*1.5);
+  if(p.fl>0){x.strokeStyle=`rgba(255,111,89,${p.fl})`;x.lineWidth=3;x.beginPath();x.arc(px,py,r+(1-p.fl)*r*2.5,0,7);x.stroke()}
+  if(!p.seen){x.setLineDash([4,3]);x.lineWidth=2;x.strokeStyle=sim.mode==='prop'?p.col:'#9fb3ad';x.beginPath();x.arc(px,py,r,0,7);x.stroke();x.setLineDash([]);
+   if(sim.mode==='prop'){x.globalAlpha=.35;x.fillStyle=p.col;x.fill();x.globalAlpha=1;tag(x,p.lab,px,py-r-3,p.col,fs*.9)}else{x.fillStyle='#9fb3ad';x.textAlign='center';x.textBaseline='middle';x.font=`700 ${fs}px Inter`;x.fillText('?',px,py)}continue}
+  x.beginPath();x.arc(px,py+r*.25,r,0,7);x.fillStyle='rgba(0,0,0,.35)';x.fill();
+  x.beginPath();x.arc(px,py,r,0,7);x.fillStyle=p.col;x.fill();x.beginPath();x.arc(px,py,r*.45,0,7);x.fillStyle='#fff';x.fill();
+  if(full||true)tag(x,p.lab,px,py-r-3,p.col,fs*.9)}}
+
+/* ---------- problem mini scenes ---------- */
+function fig(x,cx,by,h,col,hid){const bw=h*.36;rr(x,cx-bw/2,by-h*.66,bw,h*.62,bw*.3);x.fillStyle=col;x.fill();x.strokeStyle='rgba(0,0,0,.25)';x.lineWidth=1;x.stroke();
+ x.beginPath();x.arc(cx,by-h*.78,h*.12,0,7);x.fillStyle='#e8c4a0';x.fill();rr(x,cx-h*.11,by-h*.98,h*.22,h*.11,3);x.fillStyle='#fff';x.fill();
+ x.fillStyle='#2a3d39';x.fillRect(cx-bw*.35,by-h*.06,bw*.25,h*.06);x.fillRect(cx+bw*.1,by-h*.06,bw*.25,h*.06)}
+function frame(x,a,b,w,h,label){rr(x,a,b,w,h,8);x.fillStyle='#123b34';x.fill();x.strokeStyle='rgba(230,245,200,.35)';x.lineWidth=1.5;x.stroke();x.fillStyle='#ff6f59';x.beginPath();x.arc(a+12,b+12,4,0,7);x.fill();x.fillStyle='rgba(230,245,200,.85)';x.font='600 12px Inter,Vazirmatn,sans-serif';x.textAlign='left';x.textBaseline='middle';x.fillText(label,a+22,b+12.5);
+ x.fillStyle='rgba(230,245,200,.06)';x.fillRect(a,b+h*.82,w,h*.18)}
+function warn(x,txt,cx,cy){x.font='700 14px Inter,Vazirmatn,sans-serif';const w=x.measureText(txt).width+20;rr(x,cx-w/2,cy-14,w,28,14);x.fillStyle='#ff6f59';x.fill();x.fillStyle='#2a0c06';x.textAlign='center';x.textBaseline='middle';x.fillText(txt,cx,cy)}
+const ease=v=>v<.5?2*v*v:1-(-2*v+2)**2/2;
+const P1=(x,W,H,ph)=>{frame(x,6,6,W-12,H-12,t('cam')+' 1');const h=H*.48,u='#e6f5c8';const ax=W*(.12+.76*ph),bx=W*(.88-.76*ph),sw=ph>.5;
+ fig(x,bx,H*.8,h*.92,u);fig(x,ax,H*.86,h,u);
+ tag(x,sw?'#2':'#1',ax,H*.86-h-4,sw?PAL[0]:PAL[1],12);tag(x,sw?'#1':'#2',bx,H*.8-h*.92-4,sw?PAL[1]:PAL[0],12);
+ if(ph>.5&&ph<.85)warn(x,t('fx_sw'),W/2,H*.18)};
+const P2=(x,W,H,ph)=>{const fw=W*.44,g=W*.04;frame(x,6,6,fw,H-12,t('cam')+' 1');frame(x,W-6-fw,6,fw,H-12,t('cam')+' 2');const h=H*.48,px=W*(.08+.84*ph);
+ const in1=px>6+12&&px<6+fw-12,in2=px>W-6-fw+12&&px<W-18;
+ if(in1){fig(x,px,H*.86,h,'#e6f5c8');tag(x,'C1-7',px,H*.86-h-4,PAL[1],12)}
+ if(in2){fig(x,px,H*.86,h,'#e6f5c8');tag(x,'C2-3',px,H*.86-h-4,PAL[2],12);if(ph<.85)warn(x,t('fx_new'),W-6-fw/2,H*.18)}};
+const P3=(x,W,H,ph)=>{frame(x,6,6,W-12,H-12,t('cam')+' 3');const h=H*.48,px=W*(.1+.8*ph),bl=W*.42,br=W*.62;
+ const hid=px>bl-4&&px<br+4;fig(x,px,H*.86,h,'#e6f5c8');
+ rr(x,bl,H*.22,br-bl,H*.66,6);x.fillStyle='#3a6f66';x.fill();x.strokeStyle='rgba(230,245,200,.4)';x.stroke();x.fillStyle='rgba(230,245,200,.5)';x.fillRect(bl+8,H*.4,4,H*.14);
+ if(px<bl-4)tag(x,'#5',px,H*.86-h-4,PAL[1],12);else if(hid)tag(x,'?',(bl+br)/2,H*.2,'#ff6f59',12);else{tag(x,'#9',px,H*.86-h-4,PAL[2],12);if(ph<.9)warn(x,t('fx_lost'),W*.8,H*.18)}};
+
+/* ---------- pipeline ---------- */
+const IC={s1:'<path d="M3 7h12v10H3z"/><path d="M15 10.5l6-3v9l-6-3"/>',s2:'<rect x="4" y="3" width="16" height="18" rx="1" stroke-dasharray="3 2"/><circle cx="12" cy="9" r="2.2"/><path d="M8 18c0-3 2-5 4-5s4 2 4 5"/>',s3:'<circle cx="5" cy="18" r="2"/><circle cx="12" cy="11" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6.5 16.5l4-4M13.6 9.5l3.8-3"/>',s4:'<path d="M2 18l5-11h15l-5 11z"/><circle cx="12" cy="12.5" r="1.6"/><path d="M12 3v7"/>',s5:'<path d="M3 6c6 0 7 6 9 6M3 18c6 0 7-6 9-6h9"/><circle cx="21" cy="12" r="1"/>',s6:'<path d="M4 20V4M4 20h16"/><path d="M8 16v-4M12 16V8M16 16v-6"/>',sx:'<circle cx="12" cy="12" r="8.5"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/><path d="M9 14.5c2 1.6 4 1.6 6 0"/>'};
+const STG=['s1','s2','s3','s4','s5','s6','sx'];let sel='s1',on=0;
+function renderStage(){const pp=$('#pipe');pp.innerHTML=STG.map((k,i)=>{const o=k==='sx';const ord=o?6:(k==='s6'?7:i+1);return `<button class="stg${o?' opt':''}${!o&&i<5?' arr':''}" data-k="${k}" style="order:${ord}" aria-pressed="${k===sel}">${o?`<span class="tag">${t('opt')}</span>`:`<span class="n">${t('step')} ${i+1}</span>`}<svg viewBox="0 0 24 24">${IC[k]}</svg><b>${t(k)}</b></button>`}).join('');
+ $$('.stg').forEach(b=>b.onclick=()=>{sel=b.dataset.k;renderStage()});
+ $('#det').innerHTML=`<div><h3>${t(sel)}</h3><p>${t(sel+'d')}</p></div><div class="io"><span class="chip"><small>${t('inp')}</small>${t(sel+'i')}</span><span class="to">→</span><span class="chip"><small>${t('outp')}</small>${t(sel+'o')}</span></div>`;hl()}
+function hl(){$$('.stg').forEach((b,i)=>b.classList.toggle('on',i===on))}
+
+/* ---------- timeline ---------- */
+const ZC={z_ent:'#8fd3a8',z_sto:'#b59cff',z_stove:'#ffb26b',z_prep:'#5cc8f0',z_sink:'#7fcf5a',z_plate:'#f2c440'};
+const SH=[[[8,8.2,'z_ent'],[8.2,10,'z_sto'],[10,12.5,'z_prep'],[13,15.9,'z_stove']],[[8.3,8.5,'z_ent'],[8.5,11.5,'z_stove'],[12,14,'z_stove'],[14,16,'z_plate']],[[9,9.2,'z_ent'],[9.2,12,'z_sink'],[12.6,15,'z_sink'],[15,15.5,'z_sto']],[[8.1,8.3,'z_ent'],[8.3,10.5,'z_prep'],[10.5,12,'z_plate'],[12.5,14.5,'z_prep'],[14.5,15.2,'z_sto']],[[10,10.2,'z_ent'],[10.2,13,'z_plate'],[13.4,16,'z_plate']]];
+const hm=v=>{const m=Math.round(v*60);return Math.floor(m/60)+':'+String(m%60).padStart(2,'0')};
+function renderTimeline(){const el=$('#tl');const was=el.classList.contains('in');
+ el.innerHTML=SH.map((r,i)=>{const tot={};r.forEach(s=>{if(s[2]!=='z_ent')tot[s[2]]=(tot[s[2]]||0)+s[1]-s[0]});const mz=Object.entries(tot).sort((a,b)=>b[1]-a[1])[0][0];
+  return `<div class="tlr"><b>${t('w')} ${i+1}</b><div class="trk">${r.map((s,j)=>`<span class="sg" title="${t(s[2])}" style="left:${(s[0]-8)/8*100}%;width:${(s[1]-s[0])/8*100}%;background:${ZC[s[2]]};transition-delay:${i*.12+j*.08}s"></span>`).join('')}</div><span class="sum">${t('onsite')} <b>${hm(r[r.length-1][1]-r[0][0])}</b> · ${t(mz)}</span></div>`}).join('')
+ +`<div class="tlr" style="border:0"><span></span><div class="ax">${[8,10,12,14,16].map(h=>`<span>${String(h).padStart(2,'0')}:00</span>`).join('')}</div><span></span></div>`
+ +`<div class="leg">${Object.keys(ZC).map(k=>`<span><i style="background:${ZC[k]}"></i>${t(k)}</span>`).join('')}</div>`;
+ if(was)el.classList.add('in');
+ $('#mg').innerHTML=[['HOTA','m1',1],['IDF1','m2',1],['MOTA','m3',1],['ID switches','m4',0],['ATE','m5',0]].map(m=>`<div class="mc rv in"><b>${m[0]}</b><p>${t(m[1])}</p><span class="dir">${m[2]?'↑ '+t('hi'):'↓ '+t('lo')}</span></div>`).join('');
+ $('#dg').innerHTML=[['MMPTRACK','r1','d1'],['WILDTRACK','r2','d2'],['MultiviewX','r3','d3']].map(d=>`<div class="dc"><span class="role">${t(d[1])}</span><h3>${d[0]}</h3><p>${t(d[2])}</p></div>`).join('')}
+
+
+/* ---------- comparison ---------- */
+const MS=[{k:'mA',n:'ByteTrack',yr:'ECCV 2022',x:.1,y:.12,v:[0,0,1,0,0,0,2]},{k:'mB',n:'ByteTrack + OSNet',yr:'ReID: ICCV 2019',x:.22,y:.38,v:[2,0,0,1,0,0,2]},{k:'mC',n:'EarlyBird',yr:'WACV Workshops 2024',x:.8,y:.32,v:[2,2,1,1,0,0,0]},{k:'mD',n:'GEFF',yr:'WACV Workshops 2024',x:.18,y:.78,v:[1,0,1,2,2,1,2]},{k:'mP',n:'',yr:'',x:.86,y:.86,v:[2,2,2,2,1,2,2]}];
+let msel='mP';
+const mname=m=>m.k==='mP'?t('mPn'):m.n;
+const sym=v=>{const c=v===2?'y':v===1?'p':'n',l=t(v===2?'yes':v===1?'part':'no');return `<svg class="${c}" width="16" height="16" viewBox="0 0 16 16" role="img" aria-label="${l}" style="vertical-align:-3px"><title>${l}</title><circle cx="8" cy="8" r="6.5" fill="${v===2?'currentColor':'none'}" stroke="currentColor" stroke-width="2"/>${v===1?'<path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/>':''}</svg>`};
+function renderCompare(){
+ $('#mtabs').innerHTML=MS.map(m=>`<button data-k="${m.k}" aria-pressed="${m.k===msel}">${mname(m)}</button>`).join('');
+ $$('#mtabs button').forEach(b=>b.onclick=()=>{msel=b.dataset.k;renderCompare()});
+ const m=MS.find(q=>q.k===msel);
+ $('#cdet').innerHTML=`<span class="yr">${m.yr}</span><h3>${mname(m)}</h3><h4>${t('how')}</h4><p>${t(m.k+'h')}</p><h4 class="bad">${t(m.k==='mP'?'risk':'weak')}</h4><p>${t(m.k+'w')}</p>`;
+ $('#ctab').innerHTML=`<thead><tr><th>${t('crit')}</th>${MS.map(q=>`<th class="${q.k===msel?'sel':''}">${mname(q)}</th>`).join('')}</tr></thead><tbody>`+
+  [1,2,3,4,5,6,7].map(i=>`<tr><td>${t('c'+i)}</td>${MS.map(q=>`<td class="${q.k===msel?'sel':''}">${sym(q.v[i-1])}</td>`).join('')}</tr>`).join('')+
+  `</tbody><tfoot><tr><td colspan="6" style="text-align:start;font-size:13px;color:var(--mut)">${sym(2)} ${t('yes')} &nbsp; ${sym(1)} ${t('part')} &nbsp; ${sym(0)} ${t('no')}</td></tr></tfoot>`;
+ drawMap()}
+function drawMap(){const s=$('#cmap'),W=s.clientWidth,H=s.clientHeight;if(!W)return;const L=W<520?28:34,B=40,Tp=20,Rr=16,X=v=>L+v*(W-L-Rr),Y=v=>H-B-v*(H-B-Tp);const fs=W<520?11:13;
+ let g=`<rect x="${X(.5)}" y="${Tp}" width="${X(1)-X(.5)}" height="${Y(.5)-Tp}" fill="rgba(230,245,200,.07)"/>`;
+ g+=`<line x1="${L}" y1="${H-B}" x2="${W-Rr}" y2="${H-B}" stroke="rgba(230,245,200,.5)"/><line x1="${L}" y1="${H-B}" x2="${L}" y2="${Tp}" stroke="rgba(230,245,200,.5)"/>`;
+ g+=`<line x1="${X(.5)}" y1="${Tp}" x2="${X(.5)}" y2="${H-B}" stroke="rgba(230,245,200,.15)" stroke-dasharray="4 4"/><line x1="${L}" y1="${Y(.5)}" x2="${W-Rr}" y2="${Y(.5)}" stroke="rgba(230,245,200,.15)" stroke-dasharray="4 4"/>`;
+ g+=`<text x="${(L+W-Rr)/2}" y="${H-14}" text-anchor="middle" fill="#e6f5c8" font-size="${fs}">${esc(t('ax1'))}</text>`;
+ g+=`<text transform="translate(${L-8},${(Tp+H-B)/2}) rotate(-90)" text-anchor="middle" fill="#e6f5c8" font-size="${fs}">${esc(t('ax2'))}</text>`;
+ MS.forEach(m=>{const cx=X(m.x),cy=Y(m.y),sel=m.k===msel,col=m.k==='mP'?'#e6f5c8':PAL[MS.indexOf(m)+1];const r=sel?11:8;
+  g+=`<g class="dot" data-k="${m.k}" tabindex="0" role="button">${m.k==='mP'?`<circle class="pulse" cx="${cx}" cy="${cy}" r="10" fill="none" stroke="#e6f5c8" stroke-width="2"/>`:''}<circle cx="${cx}" cy="${cy}" r="${r}" fill="${col}" stroke="${sel?'#ff6f59':'#05302a'}" stroke-width="3"/>`;
+  const right=m.x<.6;g+=`<text x="${cx+(right?16:-16)}" y="${cy+4}" text-anchor="${right?'start':'end'}" fill="#fff" font-size="${fs+1}" font-weight="600">${esc(mname(m))}</text></g>`});
+ s.innerHTML=g;s.querySelectorAll('.dot').forEach(d=>{d.onclick=()=>{msel=d.dataset.k;renderCompare()};d.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();msel=d.dataset.k;renderCompare()}}})}
+const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- gap ---------- */
+function renderGap(){$('#ggrid').innerHTML=[1,2,3].map(i=>`<div class="gc rv in${i===3?' opt2':''}"><div class="gb g1"><small>${t('gapl')} ${i}</small>${t('g'+i+'g')}</div><div class="gar" aria-hidden="true"></div><div class="gb g2"><small>${i===3?t('opt'):t('conl')}</small>${t('g'+i+'c')}<br><button class="watch" data-d="${i}">▶ ${t('watch')}</button></div></div>`).join('');$$('.watch').forEach(b=>b.onclick=()=>{selDemo(+b.dataset.d);$('#demo').scrollIntoView({behavior:RM?'auto':'smooth',block:'start'})});renderDemo()}
+
+/* ---------- contribution demos ---------- */
+const DM={1:{L:10.5,ph:[0,2.5,7],cap:['d1a','d1b','d1c']},2:{L:9.5,ph:[0,2,4.2,6.4],cap:['d2a','d2b','d2c','d2d']},3:{L:11.5,ph:[0,2.5,4,6,8.5],cap:['d3a','d3b','d3c','d3d','d3e']}};
+let dsel=1,dT=0,dplay=!RM,dlast=-1;
+const dphase=()=>{const p=DM[dsel].ph;let k=0;p.forEach((v,i)=>{if(dT>=v)k=i});return k};
+function selDemo(i){dsel=i;dT=0;dlast=-1;renderDemo();drawDemo()}
+function renderDemo(){$('#dtabs').innerHTML=[1,2,3].map(i=>`<button data-d="${i}" aria-pressed="${i===dsel}">${t('conl')} ${i}${i===3?' · '+t('opt'):''}</button>`).join('');
+ $$('#dtabs button').forEach(b=>b.onclick=()=>selDemo(+b.dataset.d));
+ $('#dsteps').innerHTML=DM[dsel].ph.map((v,i)=>`<button data-p="${i}" aria-label="${i+1}"><i></i></button>`).join('');
+ $$('#dsteps button').forEach(b=>b.onclick=()=>{dT=DM[dsel].ph[+b.dataset.p]+.01;drawDemo()});
+ $('#dplay').textContent=t(dplay?'pause':'play');dlast=-1;updCap()}
+function updCap(){const k=dphase();if(k===dlast)return;dlast=k;$('#dcap').textContent=t(DM[dsel].cap[k]);$$('#dsteps button').forEach((b,i)=>b.setAttribute('aria-current',i===k))}
+function txt(x,s,a,b,fs,col,al,wt){x.font=`${wt||500} ${fs}px Inter,Vazirmatn,sans-serif`;x.fillStyle=col||'#e6f5c8';x.textAlign=al||'left';x.textBaseline='middle';x.fillText(s,a,b)}
+const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+function D1(x,W,H,tt){const fs=W<600?11:13,x0=W*(W<600?.24:.17),x1=W*.96,hx=h=>x0+(h-8)/8*(x1-x0),ys=[H*.13,H*.3,H*.47],bh=H*.1;
+ const hour=tt<2.5?9.75:9.75+6.25*cl((tt-2.5)/4.5,0,1);
+ const GT=[[8.17,12],[12.5,15.67]],B=[[8.17,9.08,4],[9.08,10.67,9],[10.67,12,12],[12.5,14.17,17],[14.17,15.67,21]],P=[[8.17,12,4],[12.5,15.67,4]];
+ const BC={4:PAL[1],9:PAL[2],12:PAL[3],17:PAL[4],21:PAL[5]};
+ [t('lab_gt'),t('lab_b'),t('lab_p')].forEach((l,i)=>txt(x,l,W*.02,ys[i]+bh/2,fs,'#e6f5c8','left',600));
+ ys.forEach(y=>{rr(x,x0,y,x1-x0,bh,4);x.fillStyle='rgba(230,245,200,.06)';x.fill()});
+ x.save();x.beginPath();x.rect(x0,0,hx(hour)-x0,H);x.clip();
+ GT.forEach(g=>{rr(x,hx(g[0]),ys[0],hx(g[1])-hx(g[0]),bh,4);x.fillStyle='rgba(230,245,200,.75)';x.fill()});
+ B.forEach(g=>{const a=hx(g[0]),w=hx(g[1])-a;rr(x,a,ys[1],w,bh,4);x.fillStyle=BC[g[2]];x.fill();if(w>34)txt(x,'ID '+g[2],a+w/2,ys[1]+bh/2,fs-1,'#06231e','center',700)});
+ B.slice(1).forEach(g=>{if(g[0]!==12.5){const a=hx(g[0]);x.fillStyle='#ff6f59';x.beginPath();x.moveTo(a,ys[1]-2);x.lineTo(a-6,ys[1]-11);x.lineTo(a+6,ys[1]-11);x.fill()}});
+ P.forEach(g=>{const a=hx(g[0]),w=hx(g[1])-a;rr(x,a,ys[2],w,bh,4);x.fillStyle=PAL[1];x.fill();if(w>34)txt(x,'ID 4',a+w/2,ys[2]+bh/2,fs-1,'#06231e','center',700)});
+ x.restore();
+ x.setLineDash([5,4]);x.strokeStyle='#e6f5c8';x.lineWidth=2;x.strokeRect(hx(9.2),ys[0]-8,hx(9.75)-hx(9.2),ys[2]+bh+16-ys[0]);x.setLineDash([]);
+ txt(x,t('lab_clip'),hx(9.2),ys[0]-17,fs-1,'#e6f5c8','left',600);
+ x.strokeStyle='#ffd166';x.lineWidth=2;x.beginPath();x.moveTo(hx(hour),ys[0]-4);x.lineTo(hx(hour),ys[2]+bh+4);x.stroke();
+ [8,10,12,14,16].forEach(h=>txt(x,String(h).padStart(2,'0')+':00',hx(h),ys[2]+bh+16,fs-1,'rgba(230,245,200,.7)','center'));
+ const upto=segs=>segs.reduce((a,g)=>a+Math.max(0,Math.min(g[1],hour)-g[0]),0);
+ const tru=upto(GT),pro=upto(P),longest=Math.max(0,...B.map(g=>Math.max(0,Math.min(g[1],hour)-g[0]))),nid=B.filter(g=>g[0]<hour).length;
+ const by=H*.7,bw=(W*.96-W*.02-24)/3,bhh=H*.26;
+ [[t('lab_true'),hm(tru),'',null],[t('lab_b'),hm(longest),t('lab_ids')+': '+nid,'#ff6f59'],[t('lab_p'),hm(pro),t('lab_ids')+': 1',PAL[3]]].forEach((b,i)=>{const bx=W*.02+i*(bw+12);rr(x,bx,by,bw,bhh,12);x.fillStyle='rgba(230,245,200,.07)';x.fill();
+  txt(x,b[0],bx+12,by+bhh*.2,fs,'rgba(230,245,200,.8)');txt(x,b[1],bx+12,by+bhh*.52,Math.min(30,W*.04),b[3]||'#fff','left',700);if(b[2])txt(x,b[2],bx+bw-12,by+bhh*.52,fs,b[3],'right',600);
+  if(tt>7&&i>0){const e=(i===1?longest:pro)-tru;txt(x,t('lab_err')+' '+(e<0?'−':'')+hm(Math.abs(e)),bx+12,by+bhh*.83,fs,i===1?'#ff6f59':PAL[3],'left',600)}})}
+function D2(x,W,H,tt){const k=tt<2?0:tt<4.2?1:tt<6.4?2:3,fs=W<600?11:13;
+ const fa={x:W*.02,y:H*.04,w:W*.46,h:H*.46},fb={x:W*.52,y:H*.04,w:W*.46,h:H*.46},fl={x:W*.27,y:H*.56,w:W*.46,h:H*.4};
+ frame(x,fa.x,fa.y,fa.w,fa.h,t('cam')+' A');frame(x,fb.x,fb.y,fb.w,fb.h,t('cam')+' B');
+ const P=[{x:30+5*Math.sin(tt*.7),y:42,c:PAL[1],id:'ID 1'},{x:70,y:20+4*Math.sin(tt*.9),c:PAL[0],id:'ID 2'}];
+ const va=p=>({x:fa.x+fa.w*(.18+.64*p.x/100),y:fa.y+fa.h*(.52+.4*p.y/60),s:fa.h*(.34+.2*p.y/60)}),vb=p=>({x:fb.x+fb.w*(.82-.64*p.x/100),y:fb.y+fb.h*(.52+.4*(1-p.y/60)),s:fb.h*(.34+.2*(1-p.y/60))}),fp=p=>({x:fl.x+fl.w*p.x/100,y:fl.y+fl.h*p.y/60});
+ [['A',va],['B',vb]].forEach(([n,v])=>{P.map((p,i)=>({p,i,q:v(p)})).sort((a,b)=>a.q.y-b.q.y).forEach(({p,i,q})=>{fig(x,q.x,q.y,q.s,'#e6f5c8');
+  x.strokeStyle=k===3?p.c:'rgba(230,245,200,.55)';x.lineWidth=2;if(k<3)x.setLineDash([4,3]);x.strokeRect(q.x-q.s*.26,q.y-q.s*1.03,q.s*.52,q.s*1.07);x.setLineDash([]);
+  tag(x,k===3?p.id:k===0?'?':n+(i+1),q.x,q.y-q.s*1.06,k===3?p.c:'#b9c9c4',fs)})});
+ x.globalAlpha=k>=2?1:.3;rr(x,fl.x,fl.y,fl.w,fl.h,10);x.fillStyle='#0a3d36';x.fill();x.strokeStyle='rgba(230,245,200,.35)';x.stroke();
+ x.strokeStyle='rgba(230,245,200,.07)';x.beginPath();for(let i=1;i<10;i++){x.moveTo(fl.x+fl.w*i/10,fl.y);x.lineTo(fl.x+fl.w*i/10,fl.y+fl.h)}for(let j=1;j<6;j++){x.moveTo(fl.x,fl.y+fl.h*j/6);x.lineTo(fl.x+fl.w,fl.y+fl.h*j/6)}x.stroke();
+ txt(x,t('lab_floor'),fl.x+10,fl.y+14,fs,'rgba(230,245,200,.8)','left',600);x.globalAlpha=1;
+ if(k===1){rr(x,fl.x-20,fl.y-4,fl.w+40,fl.h+8,12);x.fillStyle='#0d2a25';x.fill();x.strokeStyle='rgba(230,245,200,.3)';x.stroke();
+  txt(x,t('lab_app'),fl.x,fl.y+fl.h*.16,fs+1,'#fff','left',700);const f=cl((tt-2)/1.2,0,1);
+  [['A1 ↔ B1',.96],['A1 ↔ B2',.95]].forEach((r,i)=>{const yy=fl.y+fl.h*(.42+i*.24),bx=fl.x+fl.w*.3,bw2=fl.w*.55;txt(x,r[0],fl.x,yy,fs,'#e6f5c8','left',600);rr(x,bx,yy-7,bw2,14,7);x.fillStyle='rgba(230,245,200,.12)';x.fill();rr(x,bx,yy-7,Math.max(1,bw2*r[1]*f),14,7);x.fillStyle='#ffd166';x.fill();txt(x,(r[1]*f).toFixed(2),bx+bw2+8,yy,fs,'#fff','left',700)});
+  if(tt>3.2)warn(x,t('lab_tie'),fl.x+fl.w/2,fl.y+fl.h*.93)}
+ if(k>=2){const f=k===2?cl((tt-4.2)/1.6,0,1):1;P.forEach(p=>{const g=fp(p);[va(p),vb(p)].forEach((q,j)=>{const ex=q.x+(g.x-q.x)*f,ey=q.y+(g.y-q.y)*f;x.globalAlpha=k===3?.25:.85;x.setLineDash([5,4]);x.strokeStyle='#e6f5c8';x.lineWidth=1.5;x.beginPath();x.moveTo(q.x,q.y);x.lineTo(ex,ey);x.stroke();x.setLineDash([]);x.globalAlpha=1;
+   if(k===2){const off=(j?1:-1)*10*(1-cl((tt-5.4)/1,0,1));x.beginPath();x.arc(ex+off,ey,5,0,7);x.fillStyle=j?'#9fb8ff':'#ffc2a8';x.fill()}});
+   if(k===3){const r=8+3*Math.sin(tt*4);x.beginPath();x.arc(g.x,g.y,r+6,0,7);x.strokeStyle=p.c;x.lineWidth=2.5;x.stroke();x.beginPath();x.arc(g.x,g.y,7,0,7);x.fillStyle=p.c;x.fill();tag(x,p.id,g.x,g.y-r-8,p.c,fs)}})}}
+function face(x,cx,cy,r,v){x.beginPath();x.arc(cx,cy,r,0,7);x.fillStyle='#e8c4a0';x.fill();rr(x,cx-r*.9,cy-r*1.25,r*1.8,r*.55,4);x.fillStyle='#fff';x.fill();
+ x.fillStyle='#2a3d39';x.beginPath();x.arc(cx-r*.35,cy-r*.1,r*.1,0,7);x.arc(cx+r*.35,cy-r*.1,r*.1,0,7);x.fill();
+ if(v===0){x.beginPath();x.arc(cx,cy+r*.15,r*.78,.15*Math.PI,.85*Math.PI);x.lineWidth=r*.28;x.strokeStyle='#4a3326';x.stroke()}
+ else{x.lineWidth=Math.max(1.5,r*.08);x.strokeStyle='#1d2b28';x.beginPath();x.arc(cx-r*.35,cy-r*.1,r*.24,0,7);x.moveTo(cx+r*.59,cy-r*.1);x.arc(cx+r*.35,cy-r*.1,r*.24,0,7);x.moveTo(cx-r*.11,cy-r*.1);x.lineTo(cx+r*.11,cy-r*.1);x.stroke();
+  x.beginPath();x.arc(cx,cy+r*.35,r*.25,.1*Math.PI,.9*Math.PI);x.strokeStyle='#8a4b3b';x.stroke()}}
+function D3(x,W,H,tt){const k=tt<2.5?0:tt<4?1:tt<6?2:tt<8.5?3:4,fs=W<600?11:13;
+ const sc={x:W*.02,y:H*.04,w:W*.62,h:H*.92},gx=W*.67,gw=W*.31,fy=sc.y+sc.h*.84,hh=sc.h*.42;
+ frame(x,sc.x,sc.y,sc.w,sc.h,t('cam')+' 2');const SX=f=>sc.x+sc.w*f;
+ rr(x,SX(.04),fy-hh*1.25,sc.w*.11,hh*1.25,4);x.fillStyle='#24574e';x.fill();txt(x,t('z_ent'),SX(.095),fy-hh*1.32,fs-1,'rgba(230,245,200,.8)','center');
+ let A=null,Bp=null;
+ if(k===0){const f=tt/2.5;A=.72-.6*f;Bp=.88-.62*f}else if(k===2){const f=(tt-4)/2;A=.1+.36*f;Bp=.1+.21*cl(f*1.3-.3,0,1)}else if(k>=3){A=.46;Bp=.31}
+ [[Bp,'ID 5',PAL[4]],[A,'ID 3',PAL[2]]].forEach(([f,id,c])=>{if(f===null||f<.13)return;fig(x,SX(f),fy,hh,'#e6f5c8');const known=k===0||k===4;tag(x,known?id:'?',SX(f),fy-hh*1.03,known?c:'#ff6f59',fs)});
+ rr(x,SX(.04),fy-hh*1.25,sc.w*.11,hh*1.25,4);x.strokeStyle='rgba(230,245,200,.4)';x.lineWidth=1.5;x.stroke();
+ if(k===1){x.fillStyle='rgba(0,0,0,.45)';x.fillRect(sc.x,sc.y,sc.w,sc.h);warn(x,t('lab_break'),sc.x+sc.w/2,sc.y+sc.h/2)}
+ rr(x,gx,sc.y,gw,sc.h,12);x.fillStyle='rgba(230,245,200,.06)';x.fill();x.strokeStyle='rgba(230,245,200,.25)';x.lineWidth=1;x.stroke();
+ txt(x,t('lab_anch'),gx+12,sc.y+18,fs+1,'#fff','left',700);
+ const fr=Math.min(gw*.12,sc.h*.09);
+ [['ID 3',PAL[2],0,.82],['ID 5',PAL[4],1,.21]].forEach((g,i)=>{const cy=sc.y+sc.h*(.32+i*.32),cx=gx+fr+16;face(x,cx,cy,fr,g[2]);tag(x,g[0],cx,cy-fr*1.35,g[1],fs-1);
+  if(k>=3){const f=k===3?cl((tt-6.6)/1.2,0,1):1,bx=cx+fr+14,bw2=Math.max(10,gw-(bx-gx)-44);rr(x,bx,cy-6,bw2,12,6);x.fillStyle='rgba(230,245,200,.12)';x.fill();rr(x,bx,cy-6,Math.max(1,bw2*g[3]*f),12,6);x.fillStyle=i?'#ff9e8f':PAL[3];x.fill();txt(x,(g[3]*f).toFixed(2),bx+bw2+6,cy,fs,'#fff','left',700)}
+  if(k===4&&i===0){x.strokeStyle=PAL[3];x.lineWidth=3;rr(x,gx+6,cy-fr*1.9,gw-12,fr*3.5,10);x.stroke();txt(x,'✓ '+t('lab_relink'),gx+gw/2,cy+fr*1.3,fs,PAL[3],'center',700)}});
+ if(k===3){const hx2=SX(A),hy=fy-hh*.78,bx=SX(A)+sc.w*.14,by=sc.y+sc.h*.3,br=Math.min(sc.h*.14,sc.w*.08);
+  x.strokeStyle='#e6f5c8';x.setLineDash([4,3]);x.lineWidth=1.5;x.beginPath();x.moveTo(hx2,hy);x.lineTo(bx,by);x.lineTo(gx,sc.y+sc.h*.32);x.stroke();x.setLineDash([]);
+  x.beginPath();x.arc(bx,by,br+5,0,7);x.fillStyle='#0d2a25';x.fill();x.strokeStyle='#ffd166';x.lineWidth=2.5;x.stroke();face(x,bx,by+br*.12,br*.72,0);txt(x,t('lab_face'),bx,by+br+16,fs-1,'#ffd166','center',600)}}
+const DF={1:D1,2:D2,3:D3};
+function drawDemo(){const c=$('#dc'),{x,W,H}=fit(c);x.clearRect(0,0,W,H);x.fillStyle='#05302a';x.fillRect(0,0,W,H);DF[dsel](x,W,H,RM&&!dplay&&dT===0?DM[dsel].L-.5:dT);updCap()}
+$('#dplay').onclick=()=>{dplay=!dplay;$('#dplay').textContent=t(dplay?'pause':'play')};
+$('#dre').onclick=()=>{dT=0;dplay=true;$('#dplay').textContent=t('pause');drawDemo()};
+
+/* ---------- architecture ---------- */
+IC.cal='<rect x="3" y="4" width="11" height="9" rx="1"/><path d="M14 7l5-2v7l-5-2"/><path d="M3 18h18M7 16v5M12 16v5M17 16v5"/>';
+IC.map='<path d="M3 4h18v16H3z"/><path d="M3 10h8v10M11 4v3M15 14h6"/>';
+IC.sync='<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/>';
+IC.tbl='<rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14h18M9 4v16"/>';
+IC.clk='<rect x="4" y="5" width="16" height="15" rx="1"/><path d="M4 10h16M8 3v4M16 3v4M8 14h3"/>';
+IC.gan='<path d="M4 6h8M7 12h10M10 18h10" stroke-width="3"/>';
+IC.chk='<path d="M4 20V11M10 20V6M16 20v-7"/><path d="M14 6l2 2 4-4"/>';
+const AB=[{k:'I1',c:1,r:2,ic:'s1'},{k:'I2',c:1,r:5,ic:'cal'},{k:'I3',c:1,r:7,ic:'map'},{k:'P0',c:2,r:2,ic:'sync'},{k:'P1',c:2,r:3,ic:'s2'},{k:'P2',c:2,r:4,ic:'s3'},{k:'P3',c:2,r:5,ic:'s4'},{k:'P4',c:2,r:6,ic:'s5'},{k:'P5',c:3,r:4,ic:'sx',opt:1},{k:'P6',c:2,r:7,ic:'s6'},{k:'O1',c:4,r:6,ic:'tbl'},{k:'O2',c:4,r:7,ic:'clk'},{k:'O3',c:4,r:8,ic:'gan'},{k:'O4',c:4,r:5,ic:'chk'}];
+const AE=[['I1','P0'],['P0','P1'],['P1','P2'],['P2','P3'],['I2','P3'],['P3','P4'],['P2','P5',1],['P5','P4',1],['P4','P6'],['I3','P6'],['P4','O1'],['O1','O4'],['P6','O2'],['P6','O3']];
+const AORD=['I1','I2','I3','P0','P1','P2','P3','P4','P5','P6','O1','O2','O3','O4'];
+const ASMP={I1:'frame[cam=2, t=08:14:03.200] : H×W×3',I2:'H₂ = [[h11 h12 h13], [h21 h22 h23], [h31 h32 h33]]',I3:'zone "stove": polygon[(3.6,0.2), (6.4,0.2), (6.4,0.8), (3.6,0.8)] m',
+ P0:'frameset[t=08:14:03.200] = {cam1, cam2, cam3, cam4}',P1:'det[cam=2] = box(412,188,486,402), score=0.91',P2:'tracklet[cam=2, id=7] = {t₀…t, boxes, Kalman state}',P3:'foot(u,v)=(449,402)  →  floor(X,Y)=(4.12 m, 2.87 m)',
+ P4:'{cam1:#7, cam2:#3, cam4:#11}  →  global_id = 4',P5:'face(global_id=4) → 512-d embedding → anchor match 0.82',P6:'global_id=4 in "prep" 09:02 → 10:31',
+ O1:'global_id, t, X, Y, cams\n4, 08:14:03.2, 4.12, 2.87, [1,2,4]',O2:'worker 4: in 08:10 · out 15:40 · 7:00 h',O3:'08:10 entrance → storage → prep → … → 15:40 exit',O4:'HOTA ↑ · IDF1 ↑ · MOTA ↑ · IDSW ↓ · ATE ↓'};
+let asel='I1',aplay=false,aT=0;
+function renderArch(){const g=$('#agrid');
+ g.innerHTML=`<svg class="aedge" id="aedge" aria-hidden="true"></svg><div class="ah" style="grid-column:1;grid-row:1">${t('colIn')}</div><div class="ah" style="grid-column:2/4;grid-row:1">${t('colProc')}</div><div class="ah" style="grid-column:4;grid-row:1">${t('colOut')}</div>`+
+ AB.map(b=>`<button class="ab${b.opt?' aopt':''}" data-k="${b.k}" data-c="${b.c}" style="grid-column:${b.c};grid-row:${b.r};order:${AORD.indexOf(b.k)}" aria-pressed="${b.k===asel}"><svg viewBox="0 0 24 24">${IC[b.ic]}</svg><span><b>${t('A_'+b.k+'n')}</b><small>${t('A_'+b.k+'u')}</small></span></button>`).join('');
+ $$('#agrid .ab').forEach(b=>b.onclick=()=>{asel=b.dataset.k;aT=0;markArch()});
+ $('#aplay').textContent=t(aplay?'a_pause':'a_play');layoutEdges();markArch()}
+let AP=[];
+function layoutEdges(){const g=$('#agrid'),s=$('#aedge');if(!g||!s)return;AP=[];if(innerWidth<900){s.innerHTML='';return}
+ const gr=g.getBoundingClientRect(),R=k=>{const r=g.querySelector(`.ab[data-k="${k}"]`).getBoundingClientRect();return{l:r.left-gr.left,r:r.right-gr.left,t:r.top-gr.top,b:r.bottom-gr.top,cx:(r.left+r.right)/2-gr.left,cy:(r.top+r.bottom)/2-gr.top}};
+ let h='';AE.forEach((e,i)=>{const a=R(e[0]),b=R(e[1]);let d;
+  if(Math.abs(a.cx-b.cx)<30){const up=b.cy<a.cy,y1=up?a.t:a.b,y2=up?b.b:b.t;d=`M${a.cx},${y1} L${b.cx},${y2}`}
+  else{const rt=b.cx>a.cx,x1=rt?a.r:a.l,x2=rt?b.l:b.r,m=(x1+x2)/2;d=`M${x1},${a.cy} C${m},${a.cy} ${m},${b.cy} ${x2},${b.cy}`}
+  h+=`<path id="ae${i}" d="${d}" class="ep${e[2]?' dash':''}"/><circle id="ak${i}" r="5" class="pk"/>`});
+ s.setAttribute('viewBox',`0 0 ${gr.width} ${gr.height}`);s.innerHTML=h;AP=AE.map((e,i)=>({e,p:$('#ae'+i),k:$('#ak'+i)}));markArch()}
+function markArch(){$$('#agrid .ab').forEach(b=>b.setAttribute('aria-pressed',b.dataset.k===asel));
+ AP.forEach(o=>o.p.classList.toggle('on',o.e[1]===asel||o.e[0]===asel&&false));
+ $('#astep').textContent=(AORD.indexOf(asel)+1)+' / '+AORD.length;
+ const k=asel,b=AB.find(q=>q.k===k);
+ $('#adet').innerHTML=`<div><span class="acol">${t(b.c===1?'colIn':b.c===4?'colOut':'colProc')}${b.opt?' · '+t('opt'):''}</span><h3>${t('A_'+k+'n')}</h3><h4>${t('a_op')}</h4><p>${t('A_'+k+'o')}</p>
+ <div class="io"><span class="chip"><small>${t('inp')}</small>${t('A_'+k+'i')}</span><span class="to">→</span><span class="chip"><small>${t('outp')}</small>${t('A_'+k+'u')}</span></div>
+ <h4>${t('a_smp')}</h4><pre dir="ltr">${esc(ASMP[k])}</pre></div><div class="acv"><canvas id="acv" dir="ltr"></canvas></div>`;drawAD()}
+function drawAD(){const c=$('#acv');if(!c)return;const {x,W,H}=fit(c);x.clearRect(0,0,W,H);x.fillStyle='#05302a';x.fillRect(0,0,W,H);AD[asel](x,W,H)}
+function animEdges(now){AP.forEach(o=>{const on=o.e[1]===asel;o.k.style.opacity=on?1:0;if(!on)return;const L=o.p.getTotalLength(),f=(now%1400)/1400,pt=o.p.getPointAtLength(L*f);o.k.setAttribute('cx',pt.x);o.k.setAttribute('cy',pt.y)})}
+const floorBox=(W,H,pad)=>{const s=Math.min((W-2*pad)/100,(H-2*pad)/60);return{s,ox:(W-100*s)/2,oy:(H-60*s)/2}};
+function floorGrid(x,f){rr(x,f.ox,f.oy,100*f.s,60*f.s,6);x.fillStyle='#0a3d36';x.fill();x.strokeStyle='rgba(230,245,200,.08)';x.lineWidth=1;x.beginPath();for(let i=10;i<100;i+=10){x.moveTo(f.ox+i*f.s,f.oy);x.lineTo(f.ox+i*f.s,f.oy+60*f.s)}for(let j=10;j<60;j+=10){x.moveTo(f.ox,f.oy+j*f.s);x.lineTo(f.ox+100*f.s,f.oy+j*f.s)}x.stroke()}
+const AD={
+I1:(x,W,H)=>{const fw=(W-30)/2,fh=(H-30)/2;for(let i=0;i<4;i++){const a=10+(i%2)*(fw+10),b=10+Math.floor(i/2)*(fh+10);frame(x,a,b,fw,fh,t('cam')+' '+(i+1));for(let j=0;j<1+(i%2)+1;j++)fig(x,a+fw*(.3+.28*j),b+fh*.9,fh*(.42+.06*j),'#e6f5c8');txt(x,'08:14:03.2',a+fw-8,b+12,10,'rgba(230,245,200,.75)','right')}},
+I2:(x,W,H)=>{const a=W*.03,b=H*.12,fw=W*.44,fh=H*.72;frame(x,a,b,fw,fh,t('cam')+' 2');const top=b+fh*.42,bot=b+fh*.95;x.strokeStyle='rgba(230,245,200,.55)';x.lineWidth=1;
+ for(let i=0;i<=6;i++){const f=i/6;x.beginPath();x.moveTo(a+fw*(.32+.36*f),top);x.lineTo(a+fw*(.04+.92*f),bot);x.stroke()}
+ for(let j=0;j<=4;j++){const f=(j/4)**1.6,y=top+(bot-top)*f,w0=.32-.28*f;x.beginPath();x.moveTo(a+fw*w0,y);x.lineTo(a+fw*(1-w0),y);x.stroke()}
+ const ga=W*.62,gs=Math.min(W*.33,H*.6),gb=(H-gs)/2;x.strokeStyle='rgba(230,245,200,.55)';for(let i=0;i<=6;i++){x.beginPath();x.moveTo(ga+gs*i/6,gb);x.lineTo(ga+gs*i/6,gb+gs);x.stroke()}for(let j=0;j<=4;j++){x.beginPath();x.moveTo(ga,gb+gs*j/4);x.lineTo(ga+gs,gb+gs*j/4);x.stroke()}
+ x.strokeStyle='#ffd166';x.lineWidth=2.5;x.beginPath();x.moveTo(a+fw+8,H/2);x.lineTo(ga-10,H/2);x.lineTo(ga-18,H/2-6);x.moveTo(ga-10,H/2);x.lineTo(ga-18,H/2+6);x.stroke();txt(x,'H',(a+fw+ga)/2,H/2-16,20,'#ffd166','center',700);txt(x,t('lab_floor'),ga+gs/2,gb+gs+14,11,'#e6f5c8','center',600)},
+I3:(x,W,H)=>{const f=floorBox(W,H,12);floorGrid(x,f);OBS.forEach(o=>{rr(x,f.ox+o.x*f.s,f.oy+o.y*f.s,o.w*f.s,o.h*f.s,3);x.fillStyle=ZC[o.k];x.fill();txt(x,t(o.k),f.ox+(o.x+o.w/2)*f.s,f.oy+(o.y+o.h/2)*f.s,Math.max(9,Math.min(12,f.s*2)),'#06231e','center',700)});x.fillStyle=ZC.z_ent;x.fillRect(f.ox,f.oy+25*f.s,5,10*f.s);txt(x,t('z_ent'),f.ox+10,f.oy+30*f.s,11,'#e6f5c8','left',600)},
+P0:(x,W,H)=>{const L=W*.14,R=W*.95,n=9;for(let c=0;c<4;c++){const y=H*(.16+c*.19);txt(x,'C'+(c+1),W*.03,y,12,'#e6f5c8','left',700);x.strokeStyle='rgba(230,245,200,.25)';x.lineWidth=1;x.beginPath();x.moveTo(L,y);x.lineTo(R,y);x.stroke();
+ for(let k=0;k<n;k++){const xx=L+(R-L)*(k+.5)/n+(c-1.5)*3,hit=k===4;rr(x,xx-6,y-10,12,20,2);x.fillStyle=hit?'#ffd166':'rgba(230,245,200,.35)';x.fill()}}
+ const tx=L+(R-L)*4.5/n;x.strokeStyle='#ffd166';x.setLineDash([4,3]);x.lineWidth=2;x.beginPath();x.moveTo(tx,H*.05);x.lineTo(tx,H*.84);x.stroke();x.setLineDash([]);txt(x,'t = 08:14:03.200',tx,H*.92,12,'#ffd166','center',700)},
+P1:(x,W,H)=>{frame(x,10,10,W-20,H-20,t('cam')+' 2');const by=H*.86;[[.25,.5,.91],[.5,.42,.88],[.75,.48,.64]].forEach(([f,s,sc])=>{const h=H*s;fig(x,W*f,by,h,'#e6f5c8');x.strokeStyle=sc>.8?'#7ae0ff':'#ffb26b';x.lineWidth=2;x.strokeRect(W*f-h*.24,by-h*1.03,h*.48,h*1.06);tag(x,'person '+sc.toFixed(2),W*f,by-h*1.06,sc>.8?'#7ae0ff':'#ffb26b',11)})},
+P2:(x,W,H)=>{frame(x,10,10,W-20,H-20,t('cam')+' 2');const by=H*.86,h=H*.46;x.strokeStyle=PAL[1];x.lineWidth=2;x.beginPath();x.moveTo(W*.2,by);x.lineTo(W*.5,by);x.stroke();
+ [[.2,.25],[.35,.5],[.5,1]].forEach(([f,a])=>{x.globalAlpha=a;fig(x,W*f,by,h,'#e6f5c8');x.globalAlpha=1});x.strokeStyle=PAL[1];x.strokeRect(W*.5-h*.22,by-h*1.02,h*.44,h*1.05);
+ x.setLineDash([5,4]);x.strokeStyle='#ffd166';x.strokeRect(W*.66-h*.22,by-h*1.02,h*.44,h*1.05);x.setLineDash([]);tag(x,'ID 7',W*.5,by-h*1.05,PAL[1],12);txt(x,t('a_pred'),W*.66,by-h*1.13,11,'#ffd166','center',600);
+ txt(x,'t-2',W*.2,by+12,10,'rgba(230,245,200,.6)','center');txt(x,'t-1',W*.35,by+12,10,'rgba(230,245,200,.6)','center');txt(x,'t',W*.5,by+12,10,'#e6f5c8','center',700);txt(x,'t+1',W*.66,by+12,10,'#ffd166','center')},
+P3:(x,W,H)=>{const a=W*.03,b=H*.08,fw=W*.42,fh=H*.66;frame(x,a,b,fw,fh,t('cam')+' 2');const fx=a+fw*.5,fy2=b+fh*.9;fig(x,fx,fy2,fh*.6,'#e6f5c8');x.beginPath();x.arc(fx,fy2,6,0,7);x.fillStyle='#ffd166';x.fill();txt(x,'(u, v)',fx+10,fy2-8,11,'#ffd166','left',700);
+ const f={s:Math.min(W*.44/100,H*.66/60),ox:W*.54,oy:H*.08};floorGrid(x,f);const px=f.ox+42*f.s,py=f.oy+30*f.s;x.beginPath();x.arc(px,py,7,0,7);x.fillStyle='#ffd166';x.fill();txt(x,'(X, Y)',px+10,py-10,11,'#ffd166','left',700);
+ x.strokeStyle='#ffd166';x.setLineDash([5,4]);x.lineWidth=1.5;x.beginPath();x.moveTo(fx,fy2);x.quadraticCurveTo((fx+px)/2,H*.02,px,py);x.stroke();x.setLineDash([]);
+ txt(x,'[X, Y, 1]ᵀ ∝ H · [u, v, 1]ᵀ',W/2,H*.88,Math.min(18,W*.035),'#fff','center',700)},
+P4:(x,W,H)=>{const f=floorBox(W,H,14);floorGrid(x,f);const C=[[30,38,PAL[1],'ID 4'],[68,22,PAL[0],'ID 2']],sh=['c','s','t'];
+ C.forEach(([X,Y,col,id])=>{const cx=f.ox+X*f.s,cy=f.oy+Y*f.s,g=7*f.s;x.setLineDash([4,3]);x.strokeStyle='rgba(230,245,200,.5)';x.lineWidth=1.5;x.beginPath();x.arc(cx,cy,g,0,7);x.stroke();x.setLineDash([]);
+  [[-1.6,-1],[1.8,.6],[-.4,1.9]].forEach((o,i)=>{const px=cx+o[0]*f.s,py=cy+o[1]*f.s;x.fillStyle=['#ffc2a8','#9fb8ff','#b4f07a'][i];x.beginPath();if(sh[i]==='c')x.arc(px,py,5,0,7);else if(sh[i]==='s')x.rect(px-5,py-5,10,10);else{x.moveTo(px,py-6);x.lineTo(px+6,py+5);x.lineTo(px-6,py+5)}x.fill()});
+  x.strokeStyle=col;x.lineWidth=3;x.beginPath();x.arc(cx,cy,g+5,0,7);x.stroke();tag(x,id,cx,cy-g-8,col,12)});
+ [['●','C1','#ffc2a8'],['■','C2','#9fb8ff'],['▲','C4','#b4f07a']].forEach((l,i)=>txt(x,l[0]+' '+l[1],f.ox+10+i*54,f.oy+60*f.s-12,11,l[2],'left',700))},
+P5:(x,W,H)=>{const by=H*.8,h=H*.55;frame(x,10,H*.12,W*.24,H*.76,'crop');fig(x,10+W*.12,by,h,'#e6f5c8');x.strokeStyle='#ffd166';x.lineWidth=2;x.strokeRect(10+W*.12-h*.14,by-h*.98,h*.28,h*.3);
+ const fx=W*.42,fy=H*.42,fr=Math.min(W*.07,H*.13);face(x,fx,fy,fr,0);txt(x,t('lab_face'),fx,fy+fr+14,11,'#ffd166','center',600);
+ const vx=W*.53,vw=W*.16;for(let i=0;i<14;i++){const v=Math.abs(Math.sin(i*1.7+.4));x.fillStyle=i%3?'#7ae0ff':'#c9a7ff';x.fillRect(vx+i*vw/14,fy+10-v*30,vw/14-2,v*30)}txt(x,'512-d',vx+vw/2,fy+26,11,'#e6f5c8','center',600);
+ [['ID 4',0,.82,PAL[3]],['ID 2',1,.19,'#ff9e8f']].forEach((g,i)=>{const cy=H*(.3+i*.36),cx=W*.8,r=fr*.7;face(x,cx,cy,r,g[1]);tag(x,g[0],cx,cy-r*1.4,PAL[i?0:1],11);txt(x,g[2].toFixed(2),cx+r+10,cy,13,g[3],'left',700)});
+ x.strokeStyle='rgba(230,245,200,.5)';x.setLineDash([4,3]);x.beginPath();x.moveTo(vx+vw+4,fy);x.lineTo(W*.8-fr,H*.3);x.moveTo(vx+vw+4,fy);x.lineTo(W*.8-fr,H*.66);x.stroke();x.setLineDash([])},
+P6:(x,W,H)=>{const f={s:Math.min((W-24)/100,H*.62/60),ox:0,oy:8};f.ox=(W-100*f.s)/2;floorGrid(x,f);OBS.forEach(o=>{rr(x,f.ox+o.x*f.s,f.oy+o.y*f.s,o.w*f.s,o.h*f.s,3);x.fillStyle=ZC[o.k];x.globalAlpha=.8;x.fill();x.globalAlpha=1});
+ const path=[[3,30],[15,12],[30,20],[36,38],[50,38],[66,36],[64,18],[50,12],[70,20],[86,45],[30,48],[3,30]];x.strokeStyle=PAL[1];x.lineWidth=2.5;x.beginPath();path.forEach((p,i)=>{const px=f.ox+p[0]*f.s,py=f.oy+p[1]*f.s;i?x.lineTo(px,py):x.moveTo(px,py)});x.stroke();
+ const ty=f.oy+60*f.s+18,tw=W-24,seg=[['z_ent',.04],['z_sto',.16],['z_prep',.34],['z_stove',.2],['z_plate',.22],['z_ent',.04]];let cx=12;seg.forEach(s=>{rr(x,cx,ty,tw*s[1]-2,16,3);x.fillStyle=ZC[s[0]];x.fill();cx+=tw*s[1]});txt(x,'ID 4 · 08:10 → 15:40',12,ty+30,11,'#e6f5c8','left',600)},
+O1:(x,W,H)=>{const rows=[['global_id','t','X','Y','cams'],['4','08:14:03.2','4.12','2.87','1,2,4'],['4','08:14:03.3','4.15','2.86','1,2,4'],['2','08:14:03.2','6.81','1.33','2,3'],['2','08:14:03.3','6.79','1.36','2,3'],['5','08:14:03.2','8.40','4.55','3']];
+ const cw=[.16,.28,.16,.16,.2];rows.forEach((r,i)=>{const y=H*(.14+i*.14);if(!i){x.fillStyle='rgba(230,245,200,.1)';x.fillRect(10,y-H*.07,W-20,H*.14)}let cx=18;r.forEach((v,j)=>{txt(x,v,cx,y,Math.min(13,W*.028),i?(j===0?PAL[3]:'#e6f5c8'):'#fff','left',i?500:700);cx+=(W-36)*cw[j]})})},
+O2:(x,W,H)=>{const rows=[[t('w'),t('a_in'),t('a_out'),t('onsite')],['4','08:10','15:40','7:00'],['2','08:18','16:00','6:42'],['5','10:00','16:00','5:36']];const cw=[.25,.25,.25,.25];
+ rows.forEach((r,i)=>{const y=H*(.18+i*.2);if(!i){x.fillStyle='rgba(230,245,200,.1)';x.fillRect(10,y-H*.09,W-20,H*.18)}let cx=18;r.forEach((v,j)=>{txt(x,v,cx,y,Math.min(14,W*.03),i&&j===3?PAL[3]:'#e6f5c8','left',i?500:700);cx+=(W-36)*cw[j]})})},
+O3:(x,W,H)=>{const L=W*.14,R=W*.96;SH.slice(0,4).forEach((r,i)=>{const y=H*(.12+i*.2);txt(x,'W'+(i+1),10,y+9,12,'#e6f5c8','left',700);rr(x,L,y,R-L,18,4);x.fillStyle='rgba(230,245,200,.07)';x.fill();r.forEach(s=>{rr(x,L+(s[0]-8)/8*(R-L),y,(s[1]-s[0])/8*(R-L)-1,18,3);x.fillStyle=ZC[s[2]];x.fill()})});
+ [8,12,16].forEach(h=>txt(x,h+':00',L+(h-8)/8*(R-L),H*.92,11,'rgba(230,245,200,.7)','center'))},
+O4:(x,W,H)=>{[['HOTA',1],['IDF1',1],['MOTA',1],['IDSW',0],['ATE',0]].forEach((m,i)=>{const y=H*(.14+i*.18),bx=W*.24,bw=W*.5;txt(x,m[0],14,y,14,'#fff','left',700);rr(x,bx,y-8,bw,16,8);x.fillStyle='rgba(230,245,200,.1)';x.fill();
+ rr(x,bx,y-8,bw*(m[1]?.8:.25),16,8);x.fillStyle='#7ae0ff';x.fill();txt(x,m[1]?'↑ '+t('hi'):'↓ '+t('lo'),bx+bw+10,y,11,m[1]?PAL[3]:'#ffb26b','left',600)})}};
+$('#aplay').onclick=()=>{aplay=!aplay;aT=0;$('#aplay').textContent=t(aplay?'a_pause':'a_play')};
+$('#aprev').onclick=()=>{asel=AORD[(AORD.indexOf(asel)+AORD.length-1)%AORD.length];aT=0;markArch()};
+$('#anext').onclick=()=>{asel=AORD[(AORD.indexOf(asel)+1)%AORD.length];aT=0;markArch()};
+/* ---------- sim UI ---------- */
+const hero=new Sim(6),main=new Sim(6);let playing=!RM,speed=1;
+for(let i=0;i<60;i++)hero.step(.1);
+function updModeText(){$('#mexp').textContent=t(main.mode==='base'?'eb':'ep');$('#play').textContent=t(playing?'pause':'play');$('#mBase').setAttribute('aria-pressed',main.mode==='base');$('#mProp').setAttribute('aria-pressed',main.mode==='prop')}
+function stats(){$('#vSw').textContent=main.sw;$('#vId').textContent=main.created;const m=Math.floor(main.t);$('#vClk').textContent=String(8+Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
+function drawMain(){drawWorld($("#simc"),main,true);stats()}
+$('#mBase').onclick=()=>{main.setMode('base');updModeText();drawMain()};
+$('#mProp').onclick=()=>{main.setMode('prop');updModeText();drawMain()};
+$('#play').onclick=()=>{playing=!playing;updModeText()};
+$$('#camb button').forEach(b=>b.onclick=()=>{const k=+b.dataset.c;main.on[k]=main.on[k]?0:1;if(!main.on.some(v=>v)){main.on[k]=1}camUI();drawMain()});
+function camUI(){$$('#camb button').forEach(b=>b.setAttribute('aria-pressed',!!main.on[+b.dataset.c]));$('#vCov').textContent=coverage(main.on).pct+'%'}
+$('#reset').onclick=()=>{main.reset();drawMain()};
+$$('#spd button').forEach(b=>b.onclick=()=>{speed=+b.dataset.s;$$('#spd button').forEach(c=>c.setAttribute('aria-pressed',c===b))});
+
+function setLang(l){lang=T[l]?l:'en';const r=document.documentElement;r.lang=lang;r.dir=lang==='en'?'ltr':'rtl';
+ $$('[data-i]').forEach(e=>e.textContent=t(e.dataset.i));$$('.lang button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.l===lang));
+ document.title=lang==='en'?'Multi-Camera Tracking Simulation':lang==='ar'?'محاكاة التتبّع متعدد الكاميرات':'شبیه‌سازی ردیابی چنددوربینی';
+ renderStage();renderTimeline();renderCompare();renderGap();renderArch();camUI();updModeText();drawMain();drawWorld($('#hero'),hero);try{localStorage.setItem('mcmt-lang',lang)}catch(e){}}
+$$('.lang button').forEach(b=>b.onclick=()=>setLang(b.dataset.l));
+
+const vis={};const io=new IntersectionObserver(es=>es.forEach(e=>{vis[e.target.id]=e.isIntersecting;if(e.isIntersecting)e.target.classList.add('in')}),{threshold:.15});
+["hero","simc","p1","p2","p3","dc","agrid"].forEach(id=>io.observe($('#'+id)));
+const io2=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io2.unobserve(e.target)}}),{threshold:.15});
+$$('.rv,#tl').forEach(e=>io2.observe(e));
+const scenes={p1:P1,p2:P2,p3:P3};
+function drawScene(id,tm){const c=$('#'+id),{x,W,H}=fit(c);x.clearRect(0,0,W,H);x.fillStyle='#0d2a25';x.fillRect(0,0,W,H);scenes[id](x,W,H,RM?.6:ease((tm/5.5)%1))}
+let last=performance.now(),acc=0;
+function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;
+ if(vis.hero&&!RM){hero.step(dt);drawWorld($('#hero'),hero)}
+ if(vis.agrid){animEdges(now);if(aplay&&!RM){aT+=dt;if(aT>3.4){aT=0;asel=AORD[(AORD.indexOf(asel)+1)%AORD.length];markArch()}}}
+ if(vis.dc&&dplay){dT+=dt;if(dT>DM[dsel].L)dT=0;drawDemo()}
+ if(vis.simc&&playing){const n=speed;for(let i=0;i<n;i++)main.step(dt);drawMain()}
+ for(const id of['p1','p2','p3'])if(vis[id]&&!RM)drawScene(id,now/1000+(id==='p2'?1.5:id==='p3'?3:0));
+ acc+=dt;if(acc>1.6&&!RM){acc=0;on=(on+1)%6;hl()}
+ requestAnimationFrame(loop)}
+let saved='en';try{saved=localStorage.getItem('mcmt-lang')||'en'}catch(e){}
+setLang(saved);['p1','p2','p3'].forEach(id=>drawScene(id,0));
+new ResizeObserver(()=>{layoutEdges();drawDemo();drawMap();drawMain();drawWorld($('#hero'),hero);['p1','p2','p3'].forEach(id=>drawScene(id,performance.now()/1000))}).observe(document.body);
+try{document.fonts.ready.then(layoutEdges)}catch(e){}
+requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
